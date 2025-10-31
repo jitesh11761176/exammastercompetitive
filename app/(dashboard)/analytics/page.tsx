@@ -130,7 +130,7 @@ export default function AnalyticsPage() {
                 fill="#8884d8"
                 dataKey="attempts"
               >
-                {(analytics?.difficultyWise || []).map((entry: any, index: number) => (
+                {(analytics?.difficultyWise || []).map((_entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
