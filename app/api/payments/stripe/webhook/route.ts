@@ -3,6 +3,9 @@ import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 
+// Configure route to handle raw body for Stripe webhook signature verification
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')!
@@ -142,11 +145,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// Disable body parsing for webhook routes
-export const config = {
-  api: {
-    bodyParser: false,
-  },
 }
