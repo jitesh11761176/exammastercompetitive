@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
@@ -17,7 +17,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { offlineStorage, OfflineStorage } from '@/lib/offline-storage'
+import { offlineStorage } from '@/lib/offline-storage';
+import type { OfflineStorage } from '@/lib/offline-storage';
 import { toast } from 'sonner'
 
 export default function TestDetailsPage() {
@@ -28,13 +29,7 @@ export default function TestDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
 
-  useEffect(() => {
-    if (params.id) {
-      fetchTestDetails()
-    }
-  }, [params.id])
-
-  const fetchTestDetails = async () => {
+  const fetchTestDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/tests/${params.id}`)
       if (!response.ok) throw new Error('Failed to fetch test')
@@ -46,7 +41,13 @@ export default function TestDetailsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (params.id) {
+      fetchTestDetails()
+    }
+  }, [params.id, fetchTestDetails])
 
   const startTest = async () => {
     setStarting(true)
