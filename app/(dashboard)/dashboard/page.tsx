@@ -89,7 +89,7 @@ export default async function DashboardPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2">🎯 Personalize Your Experience</h3>
                 <p className="text-gray-600">
-                  Select the exams you're preparing for to see only relevant tests and get personalized recommendations.
+                  Select the exams you&apos;re preparing for to see only relevant tests and get personalized recommendations.
                 </p>
               </div>
               <Link href="/onboarding">

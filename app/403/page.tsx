@@ -10,7 +10,7 @@ export default function ForbiddenPage() {
       </div>
       <h1 className="mt-6 text-4xl font-bold">Access Denied</h1>
       <p className="mt-3 text-lg text-muted-foreground max-w-md">
-        You don't have permission to access this page. This area is restricted to administrators and content creators only.
+        You don&apos;t have permission to access this page. This area is restricted to administrators and content creators only.
       </p>
       <div className="mt-8 flex gap-4">
         <Button asChild variant="default">

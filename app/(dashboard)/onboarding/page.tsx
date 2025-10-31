@@ -94,7 +94,7 @@ export default function OnboardingPage() {
             </div>
             <CardTitle className="text-3xl font-bold">Welcome to ExamMaster Pro!</CardTitle>
             <CardDescription className="text-lg">
-              Let's personalize your experience. Select the exams you're preparing for.
+              Let&apos;s personalize your experience. Select the exams you&apos;re preparing for.
             </CardDescription>
           </CardHeader>
 
