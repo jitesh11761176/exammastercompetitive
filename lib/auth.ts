@@ -5,6 +5,8 @@ import { prisma } from './prisma'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
+  // Helps when running behind proxies like Vercel
+  trustHost: true,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
@@ -67,6 +69,12 @@ export const authOptions: NextAuthOptions = {
       
       // Default to dashboard
       return `${baseUrl}/dashboard`
+    },
+  },
+  events: {
+    error(error) {
+      // Surface detailed errors in Vercel logs to diagnose issues like DB connection failures
+      console.error('[NextAuth][events.error]', error)
     },
   },
   pages: {
