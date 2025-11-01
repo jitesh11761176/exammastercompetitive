@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq'
-import { Redis } from 'ioredis'
+import Redis from 'ioredis'
 import { logger } from '../monitoring/logger'
 import { prisma } from '@/lib/prisma'
 import type {
@@ -26,28 +26,11 @@ const scoringWorker = new Worker(
     logger.info(`Processing test scoring for attempt: ${testAttemptId}`)
     
     try {
-      // Get test attempt with all answers
+      // Get test attempt with related test
       const attempt = await prisma.testAttempt.findUnique({
         where: { id: testAttemptId },
         include: {
-          test: {
-            include: {
-              sections: {
-                include: {
-                  questions: {
-                    include: {
-                      question: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-          userAnswers: {
-            include: {
-              question: true,
-            },
-          },
+          test: true,
         },
       })
       
@@ -55,45 +38,78 @@ const scoringWorker = new Worker(
         throw new Error(`Test attempt not found: ${testAttemptId}`)
       }
       
-      // Calculate scores
+      // Calculate scores using attempt.answers and actual Question records
       let totalScore = 0
       let correctAnswers = 0
-      let incorrectAnswers = 0
-      let unanswered = 0
-      
-      const sectionScores: Record<string, number> = {}
-      
-      for (const answer of attempt.userAnswers) {
-        const question = answer.question
-        
-        if (!answer.selectedOptions || answer.selectedOptions.length === 0) {
-          unanswered++
+    let wrongAnswers = 0
+    let unattempted = 0
+
+      const answers = (attempt.answers as Record<string, any>) || {}
+      const answeredQuestionIds = Object.keys(answers)
+
+      // Fetch only the questions that were answered (or all in test to compute unanswered)
+      const allQuestionIds: string[] = Array.isArray(attempt.test.questionIds)
+        ? attempt.test.questionIds
+        : []
+
+      // Questions needed to validate answers
+      const questions = await prisma.question.findMany({
+        where: { id: { in: answeredQuestionIds } },
+      })
+
+      // Tally unanswered as those present in the test but not answered
+      const unansweredSet = new Set(
+        allQuestionIds.filter((id) => !answeredQuestionIds.includes(id))
+      )
+        unattempted += unansweredSet.size
+
+      for (const q of questions) {
+        const record = answers[q.id]
+        if (!record || record.answer == null || (Array.isArray(record.answer) && record.answer.length === 0)) {
+          unattempted++
           continue
         }
-        
-        // Check if answer is correct
-        const isCorrect = JSON.stringify(answer.selectedOptions.sort()) === 
-                         JSON.stringify(question.correctOptions.sort())
-        
+
+        const ans = record.answer as string | string[]
+        let isCorrect = false
+
+        if (q.questionType === 'MCQ') {
+          // Single correct option
+          if (typeof ans === 'string') {
+            isCorrect = q.correctOption != null && ans === q.correctOption
+          }
+        } else if (q.questionType === 'MSQ') {
+          // Multiple correct options: compare as sets
+          const given = Array.isArray(ans) ? [...ans].sort() : [String(ans)].sort()
+          const correct = (q.correctOptions || []).slice().sort()
+          isCorrect = JSON.stringify(given) === JSON.stringify(correct)
+        } else if (q.questionType === 'INTEGER') {
+          // Integer answer
+          const val = Array.isArray(ans) ? Number(ans[0]) : Number(ans)
+          isCorrect = q.integerAnswer != null && val === q.integerAnswer
+        } else if (q.questionType === 'RANGE') {
+          const val = Array.isArray(ans) ? Number(ans[0]) : Number(ans)
+          if (q.rangeMin != null && q.rangeMax != null) {
+            isCorrect = val >= q.rangeMin && val <= q.rangeMax
+          }
+        } else {
+          // Subjective/others: cannot auto-grade here
+          isCorrect = false
+        }
+
         if (isCorrect) {
           correctAnswers++
-          totalScore += question.marks
+          totalScore += q.marks || 0
         } else {
-          incorrectAnswers++
-          // Apply negative marking if configured
-          if (attempt.test.negativeMarking && question.negativeMarks) {
-            totalScore -= question.negativeMarks
+          wrongAnswers++
+          if (attempt.test.hasNegativeMarking && q.negativeMarks) {
+            totalScore -= q.negativeMarks
           }
         }
-        
-        // Track section scores
-        const sectionId = question.sectionId || 'default'
-        sectionScores[sectionId] = (sectionScores[sectionId] || 0) + 
-                                    (isCorrect ? question.marks : 0)
       }
-      
+
       // Calculate accuracy
-      const totalAttempted = correctAnswers + incorrectAnswers
+  const totalAttempted = correctAnswers + wrongAnswers
       const accuracy = totalAttempted > 0 ? (correctAnswers / totalAttempted) * 100 : 0
       
       // Update test attempt
@@ -103,15 +119,15 @@ const scoringWorker = new Worker(
           score: totalScore,
           accuracy,
           correctAnswers,
-          incorrectAnswers,
-          unanswered,
-          sectionScores,
+          wrongAnswers,
+          unattempted,
+          sectionScores: {},
           status: 'COMPLETED',
         },
       })
       
       // Update user analytics
-      await updateUserAnalytics(userId, attempt.test.categoryId)
+  await updateUserAnalytics(userId, attempt.test.categoryId)
       
       // Generate rank (add to separate job queue)
       await job.updateProgress(50)
@@ -120,7 +136,7 @@ const scoringWorker = new Worker(
         totalScore,
         accuracy,
         correctAnswers,
-        incorrectAnswers,
+        wrongAnswers,
       })
       
       return {
@@ -143,7 +159,7 @@ const scoringWorker = new Worker(
 const emailWorker = new Worker(
   'emails',
   async (job: Job<SendEmailJobData>) => {
-    const { to, subject, template, data } = job.data
+    const { to, subject } = job.data
     
     logger.info(`Sending email to: ${to}`)
     
@@ -177,7 +193,7 @@ const emailWorker = new Worker(
 const exportWorker = new Worker(
   'exports',
   async (job: Job<ExportPDFJobData>) => {
-    const { userId, testAttemptId, includeAnalytics } = job.data
+    const { testAttemptId } = job.data
     
     logger.info(`Generating PDF export for attempt: ${testAttemptId}`)
     
@@ -187,11 +203,6 @@ const exportWorker = new Worker(
         where: { id: testAttemptId },
         include: {
           test: true,
-          userAnswers: {
-            include: {
-              question: true,
-            },
-          },
         },
       })
       
@@ -254,7 +265,7 @@ const indexingWorker = new Worker(
 const aiWorker = new Worker(
   'ai',
   async (job: Job<AIGenerateQuestionsJobData>) => {
-    const { userId, prompt, count, categoryId, subjectId, topicId } = job.data
+    const { userId, count } = job.data
     
     logger.info(`Generating ${count} questions for user: ${userId}`)
     
@@ -285,7 +296,7 @@ const aiWorker = new Worker(
 )
 
 // Helper functions
-async function updateUserAnalytics(userId: string, categoryId: string) {
+async function updateUserAnalytics(userId: string, _categoryId: string) {
   // TODO: Update user analytics based on test performance
   logger.info(`Updating analytics for user: ${userId}`)
 }

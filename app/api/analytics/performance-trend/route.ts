@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { endTime: 'asc' },
       select: {
-        percentage: true,
+        accuracy: true,
         endTime: true,
         score: true,
       },
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
     // Group by date and calculate averages
     const dateMap = new Map<string, { scores: number[]; count: number }>()
 
-    attempts.forEach((attempt) => {
-      const date = attempt.completedAt!.toISOString().split('T')[0]
+    attempts.forEach((attempt: any) => {
+      const date = attempt.endTime!.toISOString().split('T')[0]
       if (!dateMap.has(date)) {
         dateMap.set(date, { scores: [], count: 0 })
       }
@@ -85,12 +85,12 @@ export async function GET(request: NextRequest) {
 
     const firstHalfAvg =
       firstHalf.length > 0
-        ? firstHalf.reduce((sum, a) => sum + (a.percentage || 0), 0) /
+        ? firstHalf.reduce((sum: number, a: any) => sum + (a.accuracy || 0), 0) /
           firstHalf.length
         : 0
     const secondHalfAvg =
       secondHalf.length > 0
-        ? secondHalf.reduce((sum, a) => sum + (a.percentage || 0), 0) /
+        ? secondHalf.reduce((sum: number, a: any) => sum + (a.accuracy || 0), 0) /
           secondHalf.length
         : 0
 

@@ -14,7 +14,6 @@ const saveAnswerSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, Zap } from 'lucide-react'
+import Image from 'next/image'
 
 export default async function LeaderboardPage() {
   const session = await getServerSession(authOptions)
@@ -93,10 +94,12 @@ export default async function LeaderboardPage() {
               <CardHeader className="text-center">
                 <div className="text-4xl mb-2">{medals[index]}</div>
                 {user.image && (
-                  <img
+                  <Image
                     src={user.image}
                     alt={user.name || ''}
-                    className="w-20 h-20 rounded-full mx-auto mb-4"
+                    width={80}
+                    height={80}
+                    className="rounded-full mx-auto mb-4"
                   />
                 )}
                 <CardTitle className="text-xl">{user.name}</CardTitle>
@@ -138,10 +141,12 @@ export default async function LeaderboardPage() {
                       {index + 1}
                     </div>
                     {user.image && (
-                      <img
+                      <Image
                         src={user.image}
                         alt={user.name || ''}
-                        className="w-12 h-12 rounded-full"
+                        width={48}
+                        height={48}
+                        className="rounded-full"
                       />
                     )}
                     <div>

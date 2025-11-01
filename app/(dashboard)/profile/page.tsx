@@ -5,16 +5,9 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Award, Calendar, TrendingUp, Zap } from 'lucide-react'
-import { Prisma } from '@prisma/client'
+import Image from 'next/image'
 
-type UserWithRelations = Prisma.UserGetPayload<{
-  include: {
-    userBadges: { include: { badge: true } }
-    testAttempts: true
-    gamification: true
-    analytics: true
-  }
-}>
+
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions)
@@ -62,10 +55,12 @@ export default async function ProfilePage() {
         <CardContent className="p-8">
           <div className="flex items-start space-x-6">
             {user.image && (
-              <img
+              <Image
                 src={user.image}
                 alt={user.name || ''}
-                className="w-24 h-24 rounded-full"
+                width={96}
+                height={96}
+                className="rounded-full"
               />
             )}
             <div className="flex-1">
@@ -129,7 +124,7 @@ export default async function ProfilePage() {
         <CardContent>
           {user.userBadges.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {user.userBadges.map((userBadge) => (
+              {user.userBadges.map((userBadge: any) => (
                 <Card key={userBadge.id} className="text-center">
                   <CardContent className="p-4">
                     <div className="text-4xl mb-2">{userBadge.badge.icon}</div>
@@ -163,7 +158,7 @@ export default async function ProfilePage() {
         <CardContent>
           {user.testAttempts.length > 0 ? (
             <div className="space-y-3">
-              {user.testAttempts.map((attempt) => (
+              {user.testAttempts.map((attempt: any) => (
                 <div
                   key={attempt.id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"

@@ -31,6 +31,17 @@ export async function POST(request: NextRequest) {
           },
         },
       })
+      // If a sessionId was provided but not found, create a new session
+      if (!chatSession) {
+        chatSession = await prisma.chatSession.create({
+          data: {
+            userId: session.user.id,
+            questionId: questionId || null,
+            title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
+          },
+          include: { messages: true },
+        })
+      }
     } else {
       // Create new chat session
       chatSession = await prisma.chatSession.create({
@@ -47,7 +58,7 @@ export async function POST(request: NextRequest) {
     const ragContext = await getRAGContext(message, questionId)
 
     // Build conversation history
-    const conversationHistory = chatSession.messages.map(msg => ({
+    const conversationHistory = (chatSession?.messages ?? []).map((msg: any) => ({
       role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
       content: msg.content,
     }))
@@ -55,7 +66,7 @@ export async function POST(request: NextRequest) {
     // Save user message
     await prisma.chatMessage.create({
       data: {
-        sessionId: chatSession.id,
+        sessionId: chatSession!.id,
         role: 'USER',
         content: message,
       },
@@ -84,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     // Update session context
     await prisma.chatSession.update({
-      where: { id: chatSession.id },
+      where: { id: chatSession!.id },
       data: { 
         context: ragContext.slice(0, 1000), // Store truncated context
         updatedAt: new Date(),
@@ -92,7 +103,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({
-      sessionId: chatSession.id,
+      sessionId: chatSession!.id,
       message: {
         id: aiMessage.id,
         content: aiMessage.content,

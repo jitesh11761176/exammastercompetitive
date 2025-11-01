@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logger } from '../monitoring/logger'
-import { createAuditLog, getClientIP } from '../monitoring/audit'
+import { getClientIP } from '../monitoring/audit'
 
 // Rate limit configurations
 export const RATE_LIMITS = {
@@ -49,7 +49,7 @@ export async function checkRateLimit(
 }> {
   const now = new Date()
   const windowStart = new Date(now.getTime() - config.windowMs)
-  const windowEnd = new Date(now.getTime())
+  // windowEnd is calculated per-entry; no local value needed here
   
   try {
     // Find existing rate limit entry

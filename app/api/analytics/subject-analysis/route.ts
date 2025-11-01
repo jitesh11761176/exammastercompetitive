@@ -11,23 +11,54 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user progress grouped by subject
-    const userProgress = await prisma.userProgress.findMany({
+    // Get per-question progress with topic/subject via question
+    const progressRows = await prisma.userProgress.findMany({
       where: { userId: session.user.id },
       include: {
-        topic: {
-          select: {
-            name: true,
-            subject: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+        question: {
+          include: {
+            topic: { include: { subject: true } },
           },
         },
       },
+      orderBy: { attemptedAt: 'desc' },
+      take: 2000,
     })
+
+    // Aggregate per topic
+    type TopicAgg = {
+      topicId: string
+      topicName: string
+      subjectId: string
+      subjectName: string
+      totalQuestions: number
+      correctAnswers: number
+      accuracy: number
+    }
+
+    const byTopic = new Map<string, TopicAgg>()
+    for (const row of progressRows as any[]) {
+      const topic = row.question?.topic
+      if (!topic) continue
+      const key = topic.id
+      const ex = byTopic.get(key)
+      const agg: TopicAgg = ex ?? {
+        topicId: topic.id,
+        topicName: topic.name,
+        subjectId: topic.subject?.id ?? '',
+        subjectName: topic.subject?.name ?? '',
+        totalQuestions: 0,
+        correctAnswers: 0,
+        accuracy: 0,
+      }
+      agg.totalQuestions += 1
+      if (row.isCorrect) agg.correctAnswers += 1
+      byTopic.set(key, agg)
+    }
+    const topicsAgg: TopicAgg[] = Array.from(byTopic.values()).map((t) => ({
+      ...t,
+      accuracy: t.totalQuestions > 0 ? (t.correctAnswers / t.totalQuestions) * 100 : 0,
+    }))
 
     // Group by subject
     const subjectMap = new Map<
@@ -47,9 +78,9 @@ export async function GET() {
       }
     >()
 
-    userProgress.forEach((progress) => {
-      const subjectId = progress.topic.subject.id
-      const subjectName = progress.topic.subject.name
+    topicsAgg.forEach((progress) => {
+      const subjectId = progress.subjectId
+      const subjectName = progress.subjectName
 
       if (!subjectMap.has(subjectId)) {
         subjectMap.set(subjectId, {
@@ -65,8 +96,8 @@ export async function GET() {
       subjectData.totalQuestions += progress.totalQuestions
       subjectData.correctAnswers += progress.correctAnswers
       subjectData.topics.push({
-        topicId: progress.topic.id,
-        topicName: progress.topic.name,
+        topicId: progress.topicId,
+        topicName: progress.topicName,
         accuracy: progress.accuracy,
         totalQuestions: progress.totalQuestions,
         correctAnswers: progress.correctAnswers,
@@ -115,7 +146,7 @@ export async function GET() {
       { total: number; correct: number; attempted: number }
     >()
 
-    testAttempts.forEach((attempt) => {
+  testAttempts.forEach((attempt: any) => {
       const difficulty = attempt.test.difficulty
       if (!difficultyMap.has(difficulty)) {
         difficultyMap.set(difficulty, { total: 0, correct: 0, attempted: 0 })

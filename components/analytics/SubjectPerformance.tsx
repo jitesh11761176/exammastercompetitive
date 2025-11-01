@@ -66,7 +66,7 @@ export function SubjectPerformance({ data }: SubjectPerformanceProps) {
                 border: '1px solid #e5e7eb',
                 borderRadius: '8px',
               }}
-              formatter={(value: number, name: string, props: any) => [
+              formatter={(value: number, _name: string, props: any) => [
                 `${value.toFixed(1)}% (${props.payload.correct}/${props.payload.attempted})`,
                 'Accuracy',
               ]}

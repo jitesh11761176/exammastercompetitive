@@ -1,5 +1,5 @@
-import { Queue, Worker, Job as BullJob, QueueEvents } from 'bullmq'
-import { Redis } from 'ioredis'
+import { Queue } from 'bullmq'
+import Redis from 'ioredis'
 import { logger } from '../monitoring/logger'
 
 // Redis connection

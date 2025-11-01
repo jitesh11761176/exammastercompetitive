@@ -40,36 +40,76 @@ export async function GET() {
       take: 10,
     })
 
-    // Get user progress
-    const userProgress = await prisma.userProgress.findMany({
+    // Get user progress rows (per-question attempts) with topic/subject via question
+    const progressRows = await prisma.userProgress.findMany({
       where: { userId: session.user.id },
       include: {
-        topic: {
-          select: {
-            id: true,
-            name: true,
-            subject: {
-              select: {
-                id: true,
-                name: true,
-              },
+        question: {
+          include: {
+            topic: {
+              include: { subject: true },
             },
           },
         },
       },
+      orderBy: { attemptedAt: 'desc' },
+      take: 1000, // limit for safety
     })
+
+    // Aggregate progress by topic
+    type Agg = {
+      topicId: string
+      topicName: string
+      subjectId: string
+      subjectName: string
+      totalQuestions: number
+      correctAnswers: number
+      accuracy: number
+      lastPracticed: Date | null
+    }
+
+    const progressByTopic = new Map<string, Agg>()
+    for (const row of progressRows as any[]) {
+      const topic = row.question?.topic
+      if (!topic) continue
+      const key = topic.id
+      const existing = progressByTopic.get(key)
+      const updated: Agg = existing ?? {
+        topicId: topic.id,
+        topicName: topic.name,
+        subjectId: topic.subject?.id ?? '',
+        subjectName: topic.subject?.name ?? '',
+        totalQuestions: 0,
+        correctAnswers: 0,
+        accuracy: 0,
+        lastPracticed: null,
+      }
+      updated.totalQuestions += 1
+      if (row.isCorrect) updated.correctAnswers += 1
+      // Update last practiced
+      const ts = row.attemptedAt ? new Date(row.attemptedAt) : null
+      if (ts && (!updated.lastPracticed || ts > updated.lastPracticed)) {
+        updated.lastPracticed = ts
+      }
+      progressByTopic.set(key, updated)
+    }
+    // Compute accuracy per topic
+    const userProgressAgg: Agg[] = Array.from(progressByTopic.values()).map((p) => ({
+      ...p,
+      accuracy: p.totalQuestions > 0 ? Math.round((p.correctAnswers / p.totalQuestions) * 1000) / 10 : 0,
+    }))
 
     // Calculate overview stats
     const totalTests = analytics?.totalTestsAttempted || 0
     const totalQuestions =
-      userProgress.reduce((sum, p) => sum + p.totalQuestions, 0)
+      userProgressAgg.reduce((sum: number, p: any) => sum + p.totalQuestions, 0)
     const overallAccuracy = analytics?.overallAccuracy || 0
-    const currentStreak = gamification?.currentStreak || 0
+  const currentStreak = gamification?.dailyStreak || 0
     const totalPoints = gamification?.totalPoints || 0
 
     // Calculate study time (in hours) - estimate based on test attempts
     const studyTime = recentTests.reduce(
-      (sum, attempt) => sum + (attempt.timeTaken || 0),
+      (sum: number, attempt: any) => sum + (attempt.timeTaken || 0),
       0
     ) / 3600 // Convert seconds to hours
 
@@ -94,7 +134,7 @@ export async function GET() {
         currentRank,
         totalUsers: allUsers,
       },
-      recentTests: recentTests.map((attempt) => ({
+      recentTests: recentTests.map((attempt: any) => ({
         id: attempt.id,
         testId: attempt.test.id,
         testTitle: attempt.test.title,
@@ -105,18 +145,17 @@ export async function GET() {
         wrongAnswers: attempt.wrongAnswers,
         skippedAnswers: attempt.skippedAnswers,
         timeTaken: attempt.timeTaken,
-        endTime: attempt.completedAt,
-        pointsEarned: attempt.pointsEarned,
+        endTime: attempt.endTime,
       })),
-      userProgress: userProgress.map((progress) => ({
-        topicId: progress.topic.id,
-        topicName: progress.topic.name,
-        subjectId: progress.topic.subject.id,
-        subjectName: progress.topic.subject.name,
-        totalQuestions: progress.totalQuestions,
-        correctAnswers: progress.correctAnswers,
-        accuracy: progress.accuracy,
-        lastPracticed: progress.lastPracticed,
+      userProgress: userProgressAgg.map((p) => ({
+        topicId: p.topicId,
+        topicName: p.topicName,
+        subjectId: p.subjectId,
+        subjectName: p.subjectName,
+        totalQuestions: p.totalQuestions,
+        correctAnswers: p.correctAnswers,
+        accuracy: p.accuracy,
+        lastPracticed: p.lastPracticed,
       })),
       analytics,
       gamification,

@@ -54,7 +54,9 @@ export async function calculateTestScore(
     },
   })
 
-  const questionMap = new Map(questions.map(q => [q.id, q]))
+  const questionMap = new Map<string, QuestionWithCorrect>(
+    questions.map((q: any) => [q.id as string, q as QuestionWithCorrect])
+  )
   
   let score = 0
   let correctAnswers = 0
@@ -63,8 +65,7 @@ export async function calculateTestScore(
   let unattempted = 0
   const detailedReport: any[] = []
 
-  // Get negative marking rules from test (if custom per section)
-  const negativeMarkingRules = test.negativeMarkingRules || {}
+  // Negative marking rules (if present on test) can be handled per question; not used here
 
   for (const answer of answers) {
     const question = questionMap.get(answer.questionId) as QuestionWithCorrect
@@ -97,9 +98,9 @@ export async function calculateTestScore(
           break
 
         case 'MSQ':
-          const userAnswers = Array.isArray(answer.answer) 
-            ? answer.answer 
-            : [answer.answer]
+          const userAnswers: string[] = (
+            Array.isArray(answer.answer) ? answer.answer : [answer.answer]
+          ).map((v) => String(v))
           const correctOpts = question.correctOptions || []
           
           // Check if completely correct
@@ -192,7 +193,7 @@ export async function calculateTestScore(
 
   return {
     score: Math.max(0, score), // Don't let score go negative
-    totalMarks: questions.reduce((sum, q) => sum + q.marks, 0),
+  totalMarks: questions.reduce((sum: number, q: any) => sum + (q.marks || 0), 0),
     correctAnswers,
     wrongAnswers,
     partialCorrect,

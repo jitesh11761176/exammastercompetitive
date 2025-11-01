@@ -84,7 +84,7 @@ export const subjectiveQuestionSchema = questionBaseSchema.extend({
   correctOptions: z.array(z.number()).length(0).default([]),
 })
 
-export const questionSchema = z.discriminatedUnion('questionType', [
+export const questionSchema = z.union([
   mcqQuestionSchema,
   msqQuestionSchema,
   integerQuestionSchema,

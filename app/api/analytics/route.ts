@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -28,21 +28,21 @@ export async function GET(request: NextRequest) {
     // Calculate statistics
     const totalAttempts = user.testAttempts.length
     const averageScore = totalAttempts > 0
-      ? user.testAttempts.reduce((sum, attempt) => sum + (attempt.accuracy || 0), 0) / totalAttempts
+      ? user.testAttempts.reduce((sum: number, attempt: any) => sum + (attempt.accuracy || 0), 0) / totalAttempts
       : 0
     const bestScore = totalAttempts > 0
-      ? Math.max(...user.testAttempts.map(a => a.accuracy || 0))
+      ? Math.max(...user.testAttempts.map((a: any) => a.accuracy || 0))
       : 0
 
     // Performance trend (last 10 tests)
-    const performanceTrend = user.testAttempts.slice(0, 10).reverse().map(attempt => ({
+    const performanceTrend = user.testAttempts.slice(0, 10).reverse().map((attempt: any) => ({
       date: attempt.endTime?.toLocaleDateString() || '',
       score: attempt.accuracy || 0
     }))
 
     // Subject-wise performance
     const subjectMap = new Map<string, { total: number; count: number }>()
-    user.testAttempts.forEach(attempt => {
+    user.testAttempts.forEach((attempt: any) => {
       const subject = attempt.test.categoryId
       const current = subjectMap.get(subject) || { total: 0, count: 0 }
       subjectMap.set(subject, {
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     // Test type distribution
     const testTypeMap = new Map<string, number>()
-    user.testAttempts.forEach(attempt => {
+    user.testAttempts.forEach((attempt: any) => {
       const testType = attempt.test.testType
       testTypeMap.set(testType, (testTypeMap.get(testType) || 0) + 1)
     })

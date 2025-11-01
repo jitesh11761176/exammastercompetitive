@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(
-  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -19,11 +18,6 @@ export async function POST(
     // Check if test exists
     const test = await prisma.test.findUnique({
       where: { id: testId },
-      include: {
-        questions: {
-          select: { id: true },
-        },
-      },
     })
 
     if (!test) {
@@ -51,10 +45,10 @@ export async function POST(
       data: {
         userId: session.user.id,
         testId: testId,
-        startedAt: new Date(),
+        startTime: new Date(),
         status: 'IN_PROGRESS',
         answers: {},
-        questionOrder: test.questions.map((q) => q.id),
+        totalMarks: test.totalMarks,
       },
     })
 

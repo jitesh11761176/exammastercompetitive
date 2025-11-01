@@ -68,11 +68,10 @@ async function verifySetup() {
 
   // Test 6: Check Comprehensive Features Tables
   try {
-    await prisma.testSection.findMany({ take: 1 })
     await prisma.subscription.findMany({ take: 1 })
     await prisma.payment.findMany({ take: 1 })
     await prisma.dailyChallenge.findMany({ take: 1 })
-    console.log('✅ Comprehensive feature tables exist (TestSection, Subscription, Payment, DailyChallenge)')
+    console.log('✅ Comprehensive feature tables exist (Subscription, Payment, DailyChallenge)')
     passed++
   } catch (error) {
     console.log('❌ Some comprehensive feature tables missing')

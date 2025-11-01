@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import {
   Clock,
   FileText,
@@ -18,13 +17,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { offlineStorage } from '@/lib/offline-storage';
-import type { OfflineStorage } from '@/lib/offline-storage';
+import { OfflineStorage } from '@/lib/offline-storage';
 import { toast } from 'sonner'
 
 export default function TestDetailsPage() {
   const params = useParams()
   const router = useRouter()
-  const { data: session } = useSession()
   const [test, setTest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)

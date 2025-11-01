@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+// @ts-ignore - optional in-script env loading for local runs only
 import * as dotenv from 'dotenv'
 
 // Load environment variables
@@ -33,7 +34,7 @@ async function testEmail() {
     console.log(`  From: ${fromEmail}`)
     console.log(`  To: jiteshshahpgtcs2@gmail.com\n`)
 
-    const data = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: fromEmail!,
       to: 'jiteshshahpgtcs2@gmail.com',
       subject: 'Test Email from ExamMaster Pro',
@@ -69,9 +70,13 @@ async function testEmail() {
       `
     })
 
+    if (error) {
+      throw new Error(`Resend error: ${error.message}`)
+    }
+
     console.log('✅ Email sent successfully!\n')
     console.log('📊 Email Details:')
-    console.log(`  Email ID: ${data.id}`)
+    console.log(`  Email ID: ${data?.id ?? 'N/A'}`)
     console.log(`  Status: Sent\n`)
     console.log('📬 Check your inbox: jiteshshahpgtcs2@gmail.com\n')
     console.log('💡 You can also view this email in Resend dashboard:')

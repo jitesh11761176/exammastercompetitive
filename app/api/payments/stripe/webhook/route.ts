@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
         if (userId && plan) {
           const subscriptionId = session.subscription as string
           const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId)
+          const sub = stripeSubscription as unknown as Stripe.Subscription
 
           await prisma.subscription.create({
             data: {
@@ -48,8 +49,8 @@ export async function POST(request: NextRequest) {
               currency: session.currency!.toUpperCase(),
               billingCycle: billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
               startDate: new Date(),
-              endDate: new Date(stripeSubscription.current_period_end * 1000),
-              nextBillingDate: new Date(stripeSubscription.current_period_end * 1000),
+              endDate: new Date((sub as any).current_period_end * 1000),
+              nextBillingDate: new Date((sub as any).current_period_end * 1000),
             },
           })
 
@@ -77,8 +78,8 @@ export async function POST(request: NextRequest) {
           where: { stripeSubscriptionId: subscription.id },
           data: {
             status: subscription.status === 'active' ? 'ACTIVE' : 'PAST_DUE',
-            endDate: new Date(subscription.current_period_end * 1000),
-            nextBillingDate: new Date(subscription.current_period_end * 1000),
+            endDate: new Date((subscription as any).current_period_end * 1000),
+            nextBillingDate: new Date((subscription as any).current_period_end * 1000),
           },
         })
         break
@@ -101,9 +102,9 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice
         
         // Update payment record
-        if (invoice.subscription) {
+        if ((invoice as any).subscription) {
           const subscription = await prisma.subscription.findFirst({
-            where: { stripeSubscriptionId: invoice.subscription as string },
+            where: { stripeSubscriptionId: (invoice as any).subscription as string },
           })
 
           if (subscription) {
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
                 currency: invoice.currency.toUpperCase(),
                 paymentMethod: 'STRIPE',
                 status: 'SUCCEEDED',
-                stripePaymentId: invoice.payment_intent as string,
+                stripePaymentId: (invoice as any).payment_intent as string,
                 description: 'Subscription renewal',
                 receiptUrl: invoice.hosted_invoice_url,
                 paidAt: new Date(),
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice
         
         await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: invoice.subscription as string },
+          where: { stripeSubscriptionId: (invoice as any).subscription as string },
           data: { status: 'PAST_DUE' },
         })
         break

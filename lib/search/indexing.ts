@@ -19,7 +19,7 @@ export async function syncQuestionsToSearchIndex() {
       },
     })
 
-    const searchData = questions.map(q => ({
+  const searchData = questions.map((q: any) => ({
       id: q.id,
       questionText: q.questionText,
       content: `${q.questionText} ${q.explanation || ''}`,
@@ -40,19 +40,16 @@ export async function syncQuestionsToSearchIndex() {
     
     // Also sync to SearchIndex table
     await prisma.searchIndex.createMany({
-      data: searchData.map(q => ({
-        itemId: q.id,
-        itemType: 'QUESTION',
+  data: searchData.map((q: any) => ({
+        documentId: q.id,
+        documentType: 'question',
         title: q.questionText.substring(0, 200),
         content: q.content,
         tags: q.tags,
-        categoryId: q.categoryId,
         categoryName: q.categoryName,
-        subjectId: q.subjectId,
         subjectName: q.subjectName,
-        topicId: q.topicId,
         topicName: q.topicName,
-        difficulty: q.difficulty,
+        difficulty: String(q.difficulty),
       })),
       skipDuplicates: true,
     })
@@ -75,7 +72,7 @@ export async function syncTestsToSearchIndex() {
       },
     })
 
-    const searchData = tests.map(t => ({
+  const searchData = tests.map((t: any) => ({
       id: t.id,
       title: t.title,
       description: t.description || '',
@@ -98,15 +95,14 @@ export async function syncTestsToSearchIndex() {
 
     // Also sync to SearchIndex table
     await prisma.searchIndex.createMany({
-      data: searchData.map(t => ({
-        itemId: t.id,
-        itemType: 'TEST',
+  data: searchData.map((t: any) => ({
+        documentId: t.id,
+        documentType: 'test',
         title: t.title,
         content: t.description,
         tags: t.tags,
-        categoryId: t.categoryId,
         categoryName: t.categoryName,
-        difficulty: t.difficulty,
+        difficulty: String(t.difficulty),
       })),
       skipDuplicates: true,
     })
@@ -161,30 +157,24 @@ export async function syncQuestionToIndex(questionId: string) {
     // Update SearchIndex table
     await prisma.searchIndex.upsert({
       where: {
-        itemId_itemType: {
-          itemId: question.id,
-          itemType: 'QUESTION',
-        },
+        documentId: question.id,
       },
       create: {
-        itemId: question.id,
-        itemType: 'QUESTION',
+        documentId: question.id,
+        documentType: 'question',
         title: question.questionText.substring(0, 200),
         content: searchData.content,
         tags: question.tags,
-        categoryId: searchData.categoryId,
         categoryName: searchData.categoryName,
-        subjectId: searchData.subjectId,
         subjectName: searchData.subjectName,
-        topicId: question.topicId,
         topicName: searchData.topicName,
-        difficulty: question.difficulty,
+        difficulty: String(question.difficulty),
       },
       update: {
         title: question.questionText.substring(0, 200),
         content: searchData.content,
         tags: question.tags,
-        difficulty: question.difficulty,
+        difficulty: String(question.difficulty),
       },
     })
   } catch (error) {
@@ -225,26 +215,22 @@ export async function syncTestToIndex(testId: string) {
     // Update SearchIndex table
     await prisma.searchIndex.upsert({
       where: {
-        itemId_itemType: {
-          itemId: test.id,
-          itemType: 'TEST',
-        },
+        documentId: test.id,
       },
       create: {
-        itemId: test.id,
-        itemType: 'TEST',
+        documentId: test.id,
+        documentType: 'test',
         title: test.title,
         content: test.description || '',
         tags: test.tags,
-        categoryId: test.categoryId,
         categoryName: searchData.categoryName,
-        difficulty: test.difficulty,
+        difficulty: String(test.difficulty),
       },
       update: {
         title: test.title,
         content: test.description || '',
         tags: test.tags,
-        difficulty: test.difficulty,
+        difficulty: String(test.difficulty),
       },
     })
   } catch (error) {

@@ -18,81 +18,23 @@ export async function POST(
 
     const attempt = await prisma.testAttempt.findUnique({
       where: { id: attemptId },
-      include: {
-        test: {
-          include: {
-            questions: true
-          }
-        }
-      }
     })
 
     if (!attempt) {
       return NextResponse.json({ error: 'Attempt not found' }, { status: 404 })
     }
 
-    // Calculate score
-    let correctAnswers = 0
-    let wrongAnswers = 0
-    let skippedAnswers = 0
-    let totalScore = 0
-
-    attempt.test.questions.forEach((question: any) => {
-      const userAnswer = answers[question.id]
-      
-      if (!userAnswer) {
-        skippedAnswers++
-        return
-      }
-
-      const isCorrect = JSON.stringify(userAnswer) === JSON.stringify(question.correctAnswer)
-      
-      if (isCorrect) {
-        correctAnswers++
-        totalScore += question.marks
-      } else {
-        wrongAnswers++
-        totalScore -= question.negativeMarks
-      }
-    })
-
-    const totalMarks = attempt.test.questions.reduce((sum: number, q: any) => sum + q.marks, 0)
-    const percentage = (totalScore / totalMarks) * 100
-    const timeTaken = Math.floor((Date.now() - attempt.startedAt.getTime()) / 1000)
-
-    // Calculate points earned (based on percentage and difficulty)
-    const difficultyMultiplier = {
-      EASY: 1,
-      MEDIUM: 1.5,
-      HARD: 2
-    }[attempt.test.difficulty] || 1
-
-    const pointsEarned = Math.floor(percentage * difficultyMultiplier)
+    // Calculate basic timing
+    const timeTaken = Math.floor((Date.now() - attempt!.startTime.getTime()) / 1000)
 
     // Update attempt
     const updatedAttempt = await prisma.testAttempt.update({
       where: { id: attemptId },
       data: {
         status: 'COMPLETED',
-        completedAt: new Date(),
+        endTime: new Date(),
         answers,
-        score: totalScore,
-        percentage,
-        correctAnswers,
-        wrongAnswers,
-        skippedAnswers,
         timeTaken,
-        pointsEarned,
-      }
-    })
-
-    // Update user points
-    await prisma.user.update({
-      where: { id: attempt.userId },
-      data: {
-        points: {
-          increment: pointsEarned
-        }
       }
     })
 

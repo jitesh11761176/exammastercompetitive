@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -33,49 +33,39 @@ export default function TestPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadTest()
-    return () => resetExam()
-  }, [testId])
+    let cancelled = false
 
-  useEffect(() => {
-    if (!timeRemaining || timeRemaining <= 0) return
+    ;(async () => {
+      try {
+        const response = await fetch(`/api/tests/${testId}`)
+        const data = await response.json()
+        if (!cancelled) {
+          setTest(data)
+          setTimeRemaining(data.duration * 60)
+        }
 
-    const timer = setInterval(() => {
-      setTimeRemaining(timeRemaining - 1)
-      
-      if (timeRemaining <= 1) {
-        handleSubmit()
+        const attemptRes = await fetch('/api/attempts/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ testId })
+        })
+        const attemptData = await attemptRes.json()
+        if (!cancelled) setAttemptId(attemptData.id)
+
+        if (!cancelled) setLoading(false)
+      } catch (error) {
+        console.error('Error loading test:', error)
       }
-    }, 1000)
+    })()
 
-    return () => clearInterval(timer)
-  }, [timeRemaining])
-
-  const loadTest = async () => {
-    try {
-      const response = await fetch(`/api/tests/${testId}`)
-      const data = await response.json()
-      setTest(data)
-      setTimeRemaining(data.duration * 60)
-      
-      // Start attempt
-      const attemptRes = await fetch('/api/attempts/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ testId })
-      })
-      const attemptData = await attemptRes.json()
-      setAttemptId(attemptData.id)
-      
-      setLoading(false)
-    } catch (error) {
-      console.error('Error loading test:', error)
+    return () => {
+      cancelled = true
+      resetExam()
     }
-  }
+  }, [testId, resetExam, setTimeRemaining])
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (isSubmitting) return
-    
     setIsSubmitting(true)
     try {
       await fetch(`/api/attempts/${attemptId}/submit`, {
@@ -88,7 +78,23 @@ export default function TestPage() {
       console.error('Error submitting test:', error)
       setIsSubmitting(false)
     }
-  }
+  }, [isSubmitting, setIsSubmitting, attemptId, answers, router, testId])
+
+  useEffect(() => {
+    if (!timeRemaining || timeRemaining <= 0) return
+
+    const timer = setTimeout(() => {
+      if (timeRemaining <= 1) {
+        handleSubmit()
+      } else {
+        setTimeRemaining(timeRemaining - 1)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [timeRemaining, setTimeRemaining, handleSubmit])
+
+  
 
   if (loading || !test) {
     return (

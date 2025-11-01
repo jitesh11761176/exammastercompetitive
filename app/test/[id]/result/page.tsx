@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Trophy,
@@ -32,8 +32,25 @@ export default function TestResultPage() {
   const [showAnimation, setShowAnimation] = useState(false)
 
   useEffect(() => {
-    if (attemptId) {
-      fetchResult()
+    if (!attemptId) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const response = await fetch(`/api/attempts/${attemptId}`)
+        if (!response.ok) throw new Error('Failed to fetch result')
+        const data = await response.json()
+        if (!cancelled) setResult(data)
+      } catch (error) {
+        console.error('Error fetching result:', error)
+        toast.error('Failed to load results')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [attemptId])
 
@@ -43,19 +60,7 @@ export default function TestResultPage() {
     }
   }, [result])
 
-  const fetchResult = async () => {
-    try {
-      const response = await fetch(`/api/attempts/${attemptId}`)
-      if (!response.ok) throw new Error('Failed to fetch result')
-      const data = await response.json()
-      setResult(data)
-    } catch (error) {
-      console.error('Error fetching result:', error)
-      toast.error('Failed to load results')
-    } finally {
-      setLoading(false)
-    }
-  }
+  
 
   const shareResult = async () => {
     const text = `I scored ${result.percentage.toFixed(1)}% on ${result.test.title}! 🎉`

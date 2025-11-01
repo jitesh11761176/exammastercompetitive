@@ -21,7 +21,7 @@ export interface CachedAnswer {
   synced: boolean
 }
 
-class OfflineStorage {
+export class OfflineStorage {
   private db: IDBDatabase | null = null
   private readonly DB_NAME = 'ExamMasterDB'
   private readonly DB_VERSION = 1
@@ -145,20 +145,22 @@ class OfflineStorage {
 
   async getUnsyncedAnswers(): Promise<CachedAnswer[]> {
     const db = await this.init()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(['answers'], 'readonly')
       const store = transaction.objectStore('answers')
       const index = store.index('synced')
-      const request = index.getAll(false)
+      const request = index.getAll()
 
-      request.onsuccess = () => resolve(request.result || [])
-      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const all = (request.result || []) as CachedAnswer[]
+        resolve(all.filter((a) => a.synced === false))
+      }
     })
   }
 
   async markAnswersSynced(answerIds: number[]): Promise<void> {
     const db = await this.init()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(['answers'], 'readwrite')
       const store = transaction.objectStore('answers')
 
@@ -184,7 +186,7 @@ class OfflineStorage {
     const db = await this.init()
     const answers = await this.getAnswersByAttempt(attemptId)
     
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(['answers'], 'readwrite')
       const store = transaction.objectStore('answers')
 
@@ -229,7 +231,7 @@ class OfflineStorage {
   // Clear all data (for logout/reset)
   async clearAll(): Promise<void> {
     const db = await this.init()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(['tests', 'answers', 'attempts'], 'readwrite')
       
       let completed = 0

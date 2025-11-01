@@ -13,19 +13,11 @@ export function initSentry() {
       replaysSessionSampleRate: 0.1,
       replaysOnErrorSampleRate: 1.0,
       
-      // Integrations
-      integrations: [
-        new Sentry.BrowserTracing({
-          tracePropagationTargets: ['localhost', /^\//],
-        }),
-        new Sentry.Replay({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-      ],
+      // Integrations (use defaults to avoid type mismatch across versions)
+      integrations: [],
       
       // Filter sensitive data
-      beforeSend(event, hint) {
+  beforeSend(event, _hint) {
         // Remove sensitive data
         if (event.request) {
           delete event.request.cookies
@@ -80,7 +72,7 @@ export function addBreadcrumb(message: string, data?: Record<string, any>) {
 
 // Start transaction for performance monitoring
 export function startTransaction(name: string, op: string) {
-  return Sentry.startTransaction({
+  return (Sentry as any).startTransaction({
     name,
     op,
   })

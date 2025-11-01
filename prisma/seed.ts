@@ -1,4 +1,4 @@
-import { PrismaClient, Difficulty, BadgeRarity, TestType } from '@prisma/client'
+import { PrismaClient, Difficulty } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -92,7 +92,7 @@ async function main() {
   // ============================================================================
   console.log('📖 Creating Subjects...')
 
-  const subjects = []
+  const subjects: any[] = []
 
   // SSC Subjects
   const sscSubjects = await Promise.all([
@@ -206,7 +206,7 @@ async function main() {
   // ============================================================================
   console.log('🎯 Creating Topics...')
 
-  const topics = []
+  const topics: any[] = []
 
   // Quantitative Aptitude Topics (SSC)
   const quantTopics = await Promise.all([
@@ -631,7 +631,7 @@ async function main() {
   // ============================================================================
   console.log('❓ Creating Sample Questions...')
 
-  const questions = []
+  const questions: { id: string }[] = []
 
   // Helper function to create questions
   const createQuestions = async (topicId: string, questionsData: any[]) => {
