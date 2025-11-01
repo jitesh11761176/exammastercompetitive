@@ -30,12 +30,25 @@ export async function POST(req: Request) {
     }
 
     let result: any = {};
+    const confirmed = formData.get('confirmed') === 'true';
 
-    // Handle command-based exam creation
+    // Handle command-based operations
     if (command) {
       console.log(`Processing command: ${command}`);
       try {
-        result.examStructure = await handleExamCreationCommand(command);
+        // Detect command type
+        const lowerCommand = command.toLowerCase();
+        
+        if (lowerCommand.includes('create category') || lowerCommand.includes('add category')) {
+          result.categoryAction = await handleCategoryCommand(command, 'create', confirmed);
+        } else if (lowerCommand.includes('delete category') || lowerCommand.includes('remove category')) {
+          result.categoryAction = await handleCategoryCommand(command, 'delete', confirmed);
+        } else if (lowerCommand.includes('under') && (lowerCommand.includes('create') || lowerCommand.includes('subcategory'))) {
+          result.categoryAction = await handleCategoryCommand(command, 'nested', confirmed);
+        } else {
+          // Regular exam creation
+          result.examStructure = await handleExamCreationCommand(command);
+        }
         console.log('✅ Command processing successful');
       } catch (error) {
         console.error('❌ Command processing failed:', error);
@@ -47,7 +60,7 @@ export async function POST(req: Request) {
     if (file) {
       console.log(`Processing file: ${file.name}`);
       try {
-        result.questions = await handleQuestionUpload(file);
+        result.questions = await handleQuestionUpload(file, confirmed);
         console.log('✅ File processing successful');
       } catch (error) {
         console.error('❌ File processing failed:', error);
@@ -73,6 +86,103 @@ export async function POST(req: Request) {
       details: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
+}
+
+async function handleCategoryCommand(command: string, action: 'create' | 'delete' | 'nested', confirmed: boolean) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+  // Extract category information using AI
+  const extractionPrompt = `Extract category information from this command: "${command}"
+
+Action: ${action}
+
+Return ONLY a JSON object with:
+- name: The category name
+- description: Brief description (for create/nested actions)
+- parentCategory: Parent category name (for nested action only)
+- slug: URL-friendly slug
+
+Example responses:
+{"name": "UPSC Civil Services", "description": "Union Public Service Commission Civil Services Examination", "slug": "upsc-civil-services"}
+{"name": "Prelims", "description": "UPSC Preliminary Examination", "parentCategory": "UPSC Civil Services", "slug": "prelims"}
+{"name": "Old Exams", "slug": "old-exams"}`;
+
+  const result = await model.generateContent(extractionPrompt);
+  const responseText = result.response.text();
+  
+  // Extract JSON from response
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Failed to extract category information');
+  
+  const categoryInfo = JSON.parse(jsonMatch[0]);
+
+  // Request confirmation if not already confirmed
+  if (!confirmed) {
+    return {
+      requiresConfirmation: true,
+      confirmationType: 'category',
+      action: `${action.charAt(0).toUpperCase() + action.slice(1)} category`,
+      details: categoryInfo
+    };
+  }
+
+  // Execute the action
+  if (action === 'create') {
+    const category = await prisma.category.create({
+      data: {
+        name: categoryInfo.name,
+        slug: categoryInfo.slug || categoryInfo.name.toLowerCase().replace(/\s+/g, '-'),
+        description: categoryInfo.description || null,
+      }
+    });
+    return { type: 'created', name: category.name, description: category.description };
+  }
+
+  if (action === 'delete') {
+    const category = await prisma.category.findFirst({
+      where: { name: { contains: categoryInfo.name, mode: 'insensitive' } }
+    });
+    
+    if (!category) throw new Error(`Category "${categoryInfo.name}" not found`);
+    
+    // Check if category has tests
+    const testCount = await prisma.test.count({
+      where: { categoryId: category.id }
+    });
+    
+    if (testCount > 0) {
+      throw new Error(`Cannot delete category "${categoryInfo.name}" because it contains ${testCount} tests`);
+    }
+    
+    await prisma.category.delete({ where: { id: category.id } });
+    return { type: 'deleted', name: category.name };
+  }
+
+  if (action === 'nested') {
+    // For nested categories, we can use the description field or create a separate parent-child relationship
+    // For simplicity, we'll create the child category with a parent reference in the name
+    const parentCategory = await prisma.category.findFirst({
+      where: { name: { contains: categoryInfo.parentCategory, mode: 'insensitive' } }
+    });
+    
+    if (!parentCategory) throw new Error(`Parent category "${categoryInfo.parentCategory}" not found`);
+    
+    const childCategory = await prisma.category.create({
+      data: {
+        name: `${parentCategory.name} - ${categoryInfo.name}`,
+        slug: `${parentCategory.slug}-${categoryInfo.slug}`,
+        description: categoryInfo.description || `${categoryInfo.name} under ${parentCategory.name}`,
+      }
+    });
+    
+    return { 
+      type: 'nested', 
+      parent: parentCategory.name, 
+      child: childCategory.name 
+    };
+  }
+
+  throw new Error('Invalid action');
 }
 
 async function handleExamCreationCommand(command: string) {
@@ -235,7 +345,7 @@ Generate the complete exam structure NOW:`;
   }
 }
 
-async function handleQuestionUpload(file: File) {
+async function handleQuestionUpload(file: File, confirmed: boolean = false) {
   let fileContent = '';
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
   
@@ -379,16 +489,24 @@ Assign difficulty based on:
 ## CRITICAL RULES:
 ✓ Extract EVERY question found (don't skip any)
 ✓ Clean text: remove extra spaces, line breaks, formatting artifacts
-✓ Escape all special characters in strings (quotes, newlines, backslashes)
-✓ Use \\n for line breaks within text, not actual newlines
+✓ Use \\n for line breaks within strings (not actual newlines)
 ✓ Do not use smart quotes (" ") or apostrophes ('), use straight quotes only
+✓ Escape all backslashes as \\\\
+✓ No trailing commas in JSON objects or arrays
 ✓ If answer is unclear, make best educated guess based on context
 ✓ Generate explanations for questions without them
-✓ Return ONLY valid JSON array (no markdown, no text, no code blocks)
+✓ Return ONLY valid JSON array (no markdown code blocks, no text, no explanations)
+✓ The response must start with [ and end with ]
 ✓ Maintain question numbering order from document
 ✓ Handle incomplete questions gracefully (use available information)
 ✓ For subjective questions, set optionA-D to null and correctOption to null
 ✓ Add "category" field to each question based on document analysis
+
+## RESPONSE FORMAT:
+Your ENTIRE response must be ONLY the JSON array. Nothing before it, nothing after it.
+Start your response with: [
+End your response with: ]
+No markdown, no code blocks, no explanations.
 
 ## QUALITY CHECKS:
 - Each question must have questionText
@@ -401,42 +519,87 @@ Assign difficulty based on:
 Extract and structure ALL questions NOW:`;
 
   try {
-    const result = await model.generateContent(prompt);
+    console.log('🔍 Sending content to AI for extraction...');
+    console.log('Content length:', fileContent.length);
+    console.log('Content preview:', fileContent.substring(0, 300));
+    
+    const result = await model.generateContent([
+      { text: prompt },
+      { text: '\n\n**CRITICAL**: Your response MUST be ONLY a valid JSON array starting with [ and ending with ]. No explanations, no markdown, no text before or after. Just pure JSON array.' }
+    ]);
     const response = await result.response;
     const text = response.text();
     
-    console.log('Raw AI response length:', text.length);
-    console.log('First 500 chars:', text.substring(0, 500));
+    console.log('========== AI RESPONSE DEBUG ==========');
+    console.log('Raw response length:', text.length);
+    console.log('First 1000 chars:', text.substring(0, 1000));
+    console.log('Last 500 chars:', text.substring(text.length - 500));
+    console.log('=====================================');
     
-    // Extract JSON from the response
-    let cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    // Extract JSON from the response - try multiple patterns
+    let cleanedText = text.trim();
     
-    // Find the JSON array by looking for the outermost brackets
+    // Remove markdown code blocks
+    cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    
+    // Remove any leading/trailing text before/after JSON
     const startIndex = cleanedText.indexOf('[');
     const endIndex = cleanedText.lastIndexOf(']');
     
     if (startIndex === -1 || endIndex === -1) {
-      throw new Error('No valid JSON array found in response');
+      console.error('No JSON array brackets found!');
+      console.error('Full cleaned text:', cleanedText);
+      throw new Error(`No valid JSON array found in response. Response starts with: ${cleanedText.substring(0, 200)}...`);
     }
     
     cleanedText = cleanedText.substring(startIndex, endIndex + 1);
+    
+    console.log('Extracted JSON (first 500 chars):', cleanedText.substring(0, 500));
     
     let questions;
     try {
       questions = JSON.parse(cleanedText);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Problematic JSON:', cleanedText.substring(0, 1000));
+      console.error('❌ JSON parse error:', parseError);
+      console.error('Problematic JSON (first 2000 chars):', cleanedText.substring(0, 2000));
       
       // Try to fix common JSON issues
       cleanedText = cleanedText
+        .replace(/\\/g, '\\\\')  // Escape backslashes first
         .replace(/\n/g, '\\n')  // Escape newlines
         .replace(/\r/g, '\\r')  // Escape carriage returns
         .replace(/\t/g, '\\t')  // Escape tabs
-        .replace(/[\u0000-\u001F]/g, ''); // Remove control characters
+        .replace(/[\u0000-\u001F]/g, '') // Remove control characters
+        .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
       
-      // Try parsing again
-      questions = JSON.parse(cleanedText);
+      console.log('Attempting parse with cleaned JSON...');
+      
+      try {
+        questions = JSON.parse(cleanedText);
+        console.log('✅ Successfully parsed after cleaning!');
+      } catch (secondError) {
+        console.error('❌ Still failed after cleaning:', secondError);
+        throw new Error(`Failed to parse AI response as JSON. The AI might not be returning proper JSON format. Error: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`);
+      }
+    }
+    
+    // Extract category information for confirmation
+    const categoryName = questions[0]?.category || 'General';
+    const questionCount = questions.length;
+    
+    // Request confirmation if not already confirmed
+    if (!confirmed) {
+      return {
+        requiresConfirmation: true,
+        confirmationType: 'questions',
+        action: `Upload ${questionCount} questions to category`,
+        details: {
+          category: categoryName,
+          questionCount,
+          fileName: file.name,
+          fileSize: `${(file.size / 1024).toFixed(2)} KB`
+        }
+      };
     }
     
     // Save questions to database
@@ -445,8 +608,9 @@ Extract and structure ALL questions NOW:`;
     return {
       extractedCount: questions.length,
       savedCount: savedQuestions.length,
+      categoryName,
       questions: savedQuestions,
-      message: `Successfully extracted and saved ${savedQuestions.length} questions`
+      message: `Successfully extracted and saved ${savedQuestions.length} questions to ${categoryName}`
     };
   } catch (error) {
     console.error('Error in question upload:', error);

@@ -54,7 +54,7 @@ export async function GET(
     })
 
     // Transform questions to include options array
-    const transformedQuestions = questions.map(q => ({
+    const transformedQuestions = questions.map((q: any) => ({
       id: q.id,
       questionText: q.questionText,
       questionImage: q.questionImage,

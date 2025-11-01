@@ -58,19 +58,19 @@ export default async function ExamsPage() {
   }
 
   // Calculate stats per category
-  const categoryStats = user.interestedCategories.map(ic => {
+  const categoryStats = user.interestedCategories.map((ic: any) => {
     const category = ic.category
     const totalTests = category.tests.length
     const completedTests = user.testAttempts.filter(
-      attempt => attempt.test.categoryId === category.id && attempt.status === 'COMPLETED'
+      (attempt: any) => attempt.test.categoryId === category.id && attempt.status === 'COMPLETED'
     ).length
     const avgScore = user.testAttempts
-      .filter(attempt => attempt.test.categoryId === category.id && attempt.status === 'COMPLETED')
-      .reduce((acc, attempt) => acc + (attempt.accuracy || 0), 0) / (completedTests || 1)
+      .filter((attempt: any) => attempt.test.categoryId === category.id && attempt.status === 'COMPLETED')
+      .reduce((acc: number, attempt: any) => acc + (attempt.accuracy || 0), 0) / (completedTests || 1)
 
     const recentAttempt = user.testAttempts
-      .filter(attempt => attempt.test.categoryId === category.id)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+      .filter((attempt: any) => attempt.test.categoryId === category.id)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
 
     return {
       category,
@@ -98,7 +98,7 @@ export default async function ExamsPage() {
 
       {/* Category Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categoryStats.map(({ category, totalTests, completedTests, avgScore, recentAttempt }) => (
+        {categoryStats.map(({ category, totalTests, completedTests, avgScore, recentAttempt }: any) => (
           <Link key={category.id} href={`/exams/${category.id}`}>
             <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer h-full">
               <CardHeader>
