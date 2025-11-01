@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Award, Calendar, TrendingUp, Zap } from 'lucide-react'
+import Image from 'next/image'
 
 
 
@@ -54,10 +55,12 @@ export default async function ProfilePage() {
         <CardContent className="p-8">
           <div className="flex items-start space-x-6">
             {user.image && (
-              <img
+              <Image
                 src={user.image}
                 alt={user.name || ''}
-                className="w-24 h-24 rounded-full"
+                width={96}
+                height={96}
+                className="rounded-full"
               />
             )}
             <div className="flex-1">
