@@ -174,34 +174,46 @@ export default function TestPage() {
                   </div>
 
                   {/* Options */}
-                  {currentQuestion.questionType === 'SINGLE_CHOICE' && (
+                  {currentQuestion.questionType === 'SINGLE_CHOICE' && currentQuestion.options && currentQuestion.options.length > 0 ? (
                     <div className="space-y-3">
-                      {currentQuestion.options.map((option: string, index: number) => (
-                        <button
-                          key={index}
-                          onClick={() => setAnswer(currentQuestion.id, option)}
-                          className={`w-full p-4 text-left border-2 rounded-lg transition-colors ${
-                            answers[currentQuestion.id] === option
-                              ? 'border-primary bg-primary/5'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            <div
-                              className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                                answers[currentQuestion.id] === option
-                                  ? 'border-primary bg-primary'
-                                  : 'border-gray-300'
-                              }`}
-                            >
-                              {answers[currentQuestion.id] === option && (
-                                <div className="w-2 h-2 bg-white rounded-full" />
-                              )}
+                      {currentQuestion.options.map((option: string, index: number) => {
+                        const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => setAnswer(currentQuestion.id, option)}
+                            className={`w-full p-4 text-left border-2 rounded-lg transition-all ${
+                              answers[currentQuestion.id] === option
+                                ? 'border-primary bg-primary/10 shadow-md'
+                                : 'border-gray-200 hover:border-primary/50 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-start">
+                              <div
+                                className={`w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                  answers[currentQuestion.id] === option
+                                    ? 'border-primary bg-primary'
+                                    : 'border-gray-300'
+                                }`}
+                              >
+                                {answers[currentQuestion.id] === option && (
+                                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <span className="font-medium text-gray-700 mr-2">{optionLabel}.</span>
+                                <span className="text-gray-900">{option}</span>
+                              </div>
                             </div>
-                            <span>{option}</span>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-yellow-800">No options available for this question</p>
                     </div>
                   )}
                 </div>

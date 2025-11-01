@@ -45,6 +45,7 @@ export async function GET(
         optionB: true,
         optionC: true,
         optionD: true,
+        questionType: true,
         marks: true,
         negativeMarks: true,
         difficulty: true,
@@ -52,7 +53,20 @@ export async function GET(
       }
     })
 
-    return NextResponse.json({ ...test, questions })
+    // Transform questions to include options array
+    const transformedQuestions = questions.map(q => ({
+      id: q.id,
+      questionText: q.questionText,
+      questionImage: q.questionImage,
+      questionType: q.questionType || 'SINGLE_CHOICE',
+      options: [q.optionA, q.optionB, q.optionC, q.optionD].filter(Boolean),
+      marks: q.marks,
+      negativeMarks: q.negativeMarks,
+      difficulty: q.difficulty,
+      timeToSolve: q.timeToSolve,
+    }))
+
+    return NextResponse.json({ ...test, questions: transformedQuestions })
   } catch (error) {
     console.error('Error fetching test:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
