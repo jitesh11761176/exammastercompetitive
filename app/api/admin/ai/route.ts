@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth/next';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '@/lib/prisma';
+import { parseExamContent, convertToDBFormat } from '@/lib/question-parser';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -594,15 +595,28 @@ Extract and structure ALL questions NOW:`;
         console.error('This usually means the AI returned malformed JSON');
         console.error('First 2000 chars of attempted JSON:', cleanedText.substring(0, 2000));
         
-        // Provide helpful error message
-        const errorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
-        const jsonPreview = cleanedText.substring(0, 500);
-        throw new Error(
-          `Failed to parse AI response as valid JSON.\n` +
-          `Parse Error: ${errorMsg}\n` +
-          `JSON Preview: ${jsonPreview}...\n` +
-          `Please try uploading the file again. If the error persists, the file format may not be supported.`
-        );
+        // FALLBACK: Try smart pattern-based parser
+        console.log('🔄 Attempting fallback: Smart pattern-based parser...');
+        try {
+          const parsedQuestions = parseExamContent(fileContent);
+          if (parsedQuestions.length > 0) {
+            console.log(`✅ Smart parser extracted ${parsedQuestions.length} questions!`);
+            questions = convertToDBFormat(parsedQuestions, 'General');
+          } else {
+            throw new Error('Smart parser found no questions');
+          }
+        } catch (parserError) {
+          console.error('❌ Smart parser also failed:', parserError);
+          
+          // Provide helpful error message
+          const errorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
+          throw new Error(
+            `Failed to extract questions using both AI and pattern matching.\n` +
+            `AI Parse Error: ${errorMsg}\n` +
+            `Pattern Parser: ${parserError instanceof Error ? parserError.message : 'Failed'}\n` +
+            `Your file might be in an unsupported format. Please ensure questions are numbered (1., 2., etc.) with options (a), (b), (c), (d) and include an ANSWER KEY section.`
+          );
+        }
       }
     }
     
