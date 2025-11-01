@@ -35,9 +35,10 @@ export default function DashboardLayout({
     { name: 'Profile', href: '/profile', icon: User },
   ]
 
-  // Add admin link if user is an admin
+  // Add admin links if user is an admin
   if ((session?.user as any)?.role === 'ADMIN') {
-    navigation.push({ name: 'Admin', href: '/admin/ai', icon: Shield })
+    navigation.push({ name: 'Admin AI', href: '/admin/ai', icon: Shield })
+    navigation.push({ name: 'All Tests', href: '/admin/tests', icon: FileText })
   }
 
   return (
