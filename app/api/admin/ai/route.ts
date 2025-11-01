@@ -304,6 +304,9 @@ Assign difficulty based on:
 ## CRITICAL RULES:
 ✓ Extract EVERY question found (don't skip any)
 ✓ Clean text: remove extra spaces, line breaks, formatting artifacts
+✓ Escape all special characters in strings (quotes, newlines, backslashes)
+✓ Use \\n for line breaks within text, not actual newlines
+✓ Do not use smart quotes (" ") or apostrophes ('), use straight quotes only
 ✓ If answer is unclear, make best educated guess based on context
 ✓ Generate explanations for questions without them
 ✓ Return ONLY valid JSON array (no markdown, no text, no code blocks)
@@ -325,9 +328,39 @@ Extract and structure ALL questions NOW:`;
     const response = await result.response;
     const text = response.text();
     
+    console.log('Raw AI response length:', text.length);
+    console.log('First 500 chars:', text.substring(0, 500));
+    
     // Extract JSON from the response
-    const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const questions = JSON.parse(cleanedText);
+    let cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Find the JSON array by looking for the outermost brackets
+    const startIndex = cleanedText.indexOf('[');
+    const endIndex = cleanedText.lastIndexOf(']');
+    
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error('No valid JSON array found in response');
+    }
+    
+    cleanedText = cleanedText.substring(startIndex, endIndex + 1);
+    
+    let questions;
+    try {
+      questions = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Problematic JSON:', cleanedText.substring(0, 1000));
+      
+      // Try to fix common JSON issues
+      cleanedText = cleanedText
+        .replace(/\n/g, '\\n')  // Escape newlines
+        .replace(/\r/g, '\\r')  // Escape carriage returns
+        .replace(/\t/g, '\\t')  // Escape tabs
+        .replace(/[\u0000-\u001F]/g, ''); // Remove control characters
+      
+      // Try parsing again
+      questions = JSON.parse(cleanedText);
+    }
     
     // Save questions to database
     const savedQuestions = await saveQuestionsToDatabase(questions);
