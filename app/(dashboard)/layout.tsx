@@ -13,7 +13,8 @@ import {
   User, 
   LogOut,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -33,6 +34,11 @@ export default function DashboardLayout({
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
     { name: 'Profile', href: '/profile', icon: User },
   ]
+
+  // Add admin link if user is an admin
+  if ((session?.user as any)?.role === 'ADMIN') {
+    navigation.push({ name: 'Admin', href: '/admin/ai', icon: Shield })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
