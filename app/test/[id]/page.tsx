@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { useExamStore } from '@/lib/store'
 import { formatTime } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, Flag, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Flag, Send, Shield } from 'lucide-react'
 
 export default function TestPage() {
   const params = useParams()
   const router = useRouter()
   const testId = params.id as string
+  const { data: session } = useSession()
   
   const {
     currentQuestionIndex,
@@ -32,7 +34,15 @@ export default function TestPage() {
   const [attemptId, setAttemptId] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
+  // Prevent admins from taking tests
+  const isAdmin = (session?.user as any)?.role === 'ADMIN'
+
   useEffect(() => {
+    if (isAdmin) {
+      router.push('/dashboard')
+      return
+    }
+
     let cancelled = false
 
     ;(async () => {
@@ -62,7 +72,7 @@ export default function TestPage() {
       cancelled = true
       resetExam()
     }
-  }, [testId, resetExam, setTimeRemaining])
+  }, [testId, resetExam, setTimeRemaining, isAdmin, router])
 
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) return
@@ -117,6 +127,29 @@ export default function TestPage() {
             Back to Tests
           </Button>
         </div>
+      </div>
+    )
+  }
+
+  // Show admin restriction message
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <Shield className="w-16 h-16 mx-auto text-primary" />
+              <h2 className="text-2xl font-bold">Admin Access Restricted</h2>
+              <p className="text-gray-600">
+                Admins cannot take tests. This feature is only available for regular users.
+                Use the Admin AI Assistant to manage questions and tests.
+              </p>
+              <Button onClick={() => router.push('/dashboard')} className="w-full">
+                Return to Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

@@ -28,20 +28,27 @@ export default function DashboardLayout({
   const { data: session } = useSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'My Exams', href: '/exams', icon: BookOpen },
-    { name: 'All Tests', href: '/tests', icon: FileText },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-    { name: 'Profile', href: '/profile', icon: User },
-  ]
+  const isAdmin = (session?.user as any)?.role === 'ADMIN'
 
-  // Add admin links if user is an admin
-  if ((session?.user as any)?.role === 'ADMIN') {
-    navigation.push({ name: 'Admin AI', href: '/admin/ai', icon: Shield })
-    navigation.push({ name: 'All Tests (Admin)', href: '/admin/tests', icon: FileText })
-  }
+  // Different navigation for admin vs regular users
+  const navigation = isAdmin
+    ? [
+        // Admin-only navigation - management focused
+        { name: 'Admin Dashboard', href: '/dashboard', icon: Home },
+        { name: 'AI Assistant', href: '/admin/ai', icon: Shield },
+        { name: 'Manage Tests', href: '/admin/tests', icon: FileText },
+        { name: 'Manage Categories', href: '/admin/categories', icon: BookOpen },
+        { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+      ]
+    : [
+        // Regular user navigation - exam focused
+        { name: 'Dashboard', href: '/dashboard', icon: Home },
+        { name: 'My Exams', href: '/exams', icon: BookOpen },
+        { name: 'All Tests', href: '/tests', icon: FileText },
+        { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+        { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+        { name: 'Profile', href: '/profile', icon: User },
+      ]
 
   return (
     <div className="min-h-screen bg-gray-50">
