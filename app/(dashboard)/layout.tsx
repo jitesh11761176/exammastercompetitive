@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Shield,
-  BookOpen
+  BookOpen,
+  FileSpreadsheet
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -36,6 +37,7 @@ export default function DashboardLayout({
         // Admin-only navigation - management focused
         { name: 'Admin Dashboard', href: '/dashboard', icon: Home },
         { name: 'AI Assistant', href: '/admin/ai', icon: Shield },
+        { name: 'Upload Excel', href: '/admin/upload-excel', icon: FileSpreadsheet },
         { name: 'Manage Tests', href: '/admin/tests', icon: FileText },
         { name: 'Manage Categories', href: '/admin/categories', icon: BookOpen },
         { name: 'Analytics', href: '/analytics', icon: BarChart3 },
