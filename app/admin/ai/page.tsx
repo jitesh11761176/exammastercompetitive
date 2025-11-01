@@ -7,33 +7,47 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { Upload, FileText, Image as ImageIcon, Copy, Wand2 } from 'lucide-react';
+
+type UploadMode = 'command' | 'file' | 'paste' | 'image';
 
 export default function AiAdminPage() {
+  const [mode, setMode] = useState<UploadMode>('command');
   const [command, setCommand] = useState('');
+  const [pasteContent, setPasteContent] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [response, setResponse] = useState<string>('');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
+    if (event.target.files && event.target.files[0]) {
       setFile(event.target.files[0]);
+      setMode('file');
     }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!command && !file) {
-      toast.error('Please enter a command or upload a file.');
+    
+    if (!command && !file && !pasteContent) {
+      toast.error('Please enter a command, upload a file, or paste content.');
       return;
     }
+    
     setIsLoading(true);
-    toast.info('Processing request...');
+    setResponse('');
+    toast.info('Processing request... This may take a moment.');
 
     const formData = new FormData();
-    if (command) {
+    
+    if (mode === 'command' && command) {
       formData.append('command', command);
-    }
-    if (file) {
+    } else if (mode === 'file' && file) {
       formData.append('file', file);
+    } else if ((mode === 'paste' || mode === 'image') && pasteContent) {
+      // Create a text file from pasted content
+      const blob = new Blob([pasteContent], { type: 'text/plain' });
+      formData.append('file', blob, 'pasted-content.txt');
     }
 
     try {
@@ -49,68 +63,249 @@ export default function AiAdminPage() {
       }
 
       // Display success message with details
-      if (result.data.examStructure) {
-        toast.success(`Exam "${result.data.examStructure.examName}" created successfully with ${result.data.examStructure.totalQuestions} questions!`);
+      let successMsg = '';
+      
+      if (result.data?.examStructure) {
+        const exam = result.data.examStructure;
+        successMsg = `✅ Exam Created: "${exam.examName}"\n📝 ${exam.totalQuestions} questions\n⏱️ ${exam.duration} minutes\n🎯 Category: ${exam.categoryName}`;
+        toast.success(successMsg, { duration: 5000 });
       }
       
-      if (result.data.questions) {
-        toast.success(`Successfully extracted and saved ${result.data.questions.savedCount} questions from the file!`);
+      if (result.data?.questions) {
+        successMsg = `✅ Questions Uploaded!\n📝 ${result.data.questions.savedCount} questions saved successfully`;
+        toast.success(successMsg, { duration: 5000 });
       }
 
+      if (result.data?.testId) {
+        toast.success(`🎉 Test created! ID: ${result.data.testId}`, { duration: 5000 });
+      }
+
+      setResponse(JSON.stringify(result.data, null, 2));
+      
+      // Reset form
       setCommand('');
+      setPasteContent('');
       setFile(null);
       
       // Reset file input
       const fileInput = document.getElementById('file') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
-    } catch (error) {
-      toast.error('Failed to process AI task.');
-      console.error(error);
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to process AI task.';
+      toast.error(`❌ Error: ${errorMsg}`, { duration: 7000 });
+      setResponse(`Error: ${errorMsg}`);
+      console.error('AI Processing Error:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-10 max-w-5xl">
       <Card>
         <CardHeader>
-          <CardTitle>AI Content Uploader</CardTitle>
+          <CardTitle className="text-2xl">AI Content Uploader</CardTitle>
           <CardDescription>
-            Use AI to generate exams or upload questions from a file.
+            Generate exams or upload questions using AI - Multiple input methods available
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="command">Create Exam Command</Label>
-              <Textarea
-                id="command"
-                placeholder="e.g., 'Create a new exam for DSSSB with 20 questions about General Knowledge.'"
-                value={command}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommand(e.target.value)}
-                disabled={isLoading}
-              />
+            {/* Mode Selection */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Button
+                type="button"
+                variant={mode === 'command' ? 'default' : 'outline'}
+                className="h-20 flex flex-col gap-2"
+                onClick={() => setMode('command')}
+              >
+                <Wand2 className="w-5 h-5" />
+                <span className="text-xs">AI Command</span>
+              </Button>
+              <Button
+                type="button"
+                variant={mode === 'file' ? 'default' : 'outline'}
+                className="h-20 flex flex-col gap-2"
+                onClick={() => setMode('file')}
+              >
+                <Upload className="w-5 h-5" />
+                <span className="text-xs">Upload File</span>
+              </Button>
+              <Button
+                type="button"
+                variant={mode === 'paste' ? 'default' : 'outline'}
+                className="h-20 flex flex-col gap-2"
+                onClick={() => setMode('paste')}
+              >
+                <Copy className="w-5 h-5" />
+                <span className="text-xs">Copy/Paste</span>
+              </Button>
+              <Button
+                type="button"
+                variant={mode === 'image' ? 'default' : 'outline'}
+                className="h-20 flex flex-col gap-2"
+                onClick={() => setMode('image')}
+              >
+                <ImageIcon className="w-5 h-5" />
+                <span className="text-xs">Image/PDF</span>
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="file">Upload Questions File</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={handleFileChange}
-                disabled={isLoading}
-                accept=".pdf,.txt,.md,.markdown,.json"
-              />
-              {file && <p className="text-sm text-muted-foreground">Selected file: {file.name}</p>}
-            </div>
+
+            {/* AI Command Mode */}
+            {mode === 'command' && (
+              <div className="space-y-2">
+                <Label htmlFor="command" className="text-base font-semibold">
+                  <Wand2 className="w-4 h-4 inline mr-2" />
+                  Create Exam Command
+                </Label>
+                <Textarea
+                  id="command"
+                  placeholder="Example: Create a KVS PRT FULL exam with 150 questions covering Child Development, Hindi, English, Mathematics, and Environmental Studies"
+                  value={command}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommand(e.target.value)}
+                  disabled={isLoading}
+                  className="min-h-[120px]"
+                />
+                <p className="text-sm text-muted-foreground">
+                  💡 Tip: Specify exam name, number of questions, and subjects
+                </p>
+              </div>
+            )}
+
+            {/* File Upload Mode */}
+            {mode === 'file' && (
+              <div className="space-y-2">
+                <Label htmlFor="file" className="text-base font-semibold">
+                  <FileText className="w-4 h-4 inline mr-2" />
+                  Upload Questions File
+                </Label>
+                <Input
+                  id="file"
+                  type="file"
+                  onChange={handleFileChange}
+                  disabled={isLoading}
+                  accept=".pdf,.txt,.md,.markdown,.json"
+                  className="cursor-pointer"
+                />
+                {file && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-800">✅ Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)</p>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  📁 Supported: PDF, TXT, Markdown (.md), JSON
+                </p>
+              </div>
+            )}
+
+            {/* Copy/Paste Mode */}
+            {mode === 'paste' && (
+              <div className="space-y-2">
+                <Label htmlFor="paste" className="text-base font-semibold">
+                  <Copy className="w-4 h-4 inline mr-2" />
+                  Paste Questions Content
+                </Label>
+                <Textarea
+                  id="paste"
+                  placeholder="Paste your questions here in any format (text, table, JSON, etc.)&#10;&#10;Example:&#10;Q1. What is the capital of India?&#10;A) Mumbai&#10;B) Delhi&#10;C) Kolkata&#10;D) Chennai&#10;Answer: B"
+                  value={pasteContent}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPasteContent(e.target.value)}
+                  disabled={isLoading}
+                  className="min-h-[200px] font-mono text-sm"
+                />
+                <p className="text-sm text-muted-foreground">
+                  📋 Paste questions in any format - AI will extract them automatically
+                </p>
+              </div>
+            )}
+
+            {/* Image/PDF Mode */}
+            {mode === 'image' && (
+              <div className="space-y-2">
+                <Label htmlFor="imageFile" className="text-base font-semibold">
+                  <ImageIcon className="w-4 h-4 inline mr-2" />
+                  Upload Image or PDF
+                </Label>
+                <Input
+                  id="imageFile"
+                  type="file"
+                  onChange={handleFileChange}
+                  disabled={isLoading}
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  className="cursor-pointer"
+                />
+                {file && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800">✅ Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)</p>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  🖼️ Upload scanned question papers or screenshots (PDF, PNG, JPG, WEBP)
+                </p>
+              </div>
+            )}
+
+            {/* Response Display */}
+            {response && (
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Response</Label>
+                <div className="p-4 bg-gray-50 border rounded-md max-h-60 overflow-auto">
+                  <pre className="text-xs whitespace-pre-wrap">{response}</pre>
+                </div>
+              </div>
+            )}
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Processing...' : 'Submit to AI'}
+          <CardFooter className="flex justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCommand('');
+                setPasteContent('');
+                setFile(null);
+                setResponse('');
+              }}
+              disabled={isLoading}
+            >
+              Clear All
+            </Button>
+            <Button type="submit" disabled={isLoading} size="lg">
+              {isLoading ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  Submit to AI
+                </>
+              )}
             </Button>
           </CardFooter>
         </form>
+      </Card>
+
+      {/* Help Section */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Quick Guide</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div>
+            <strong>🤖 AI Command:</strong> Describe the exam you want to create (e.g., &quot;Create DSSSB exam with 100 questions&quot;)
+          </div>
+          <div>
+            <strong>📁 Upload File:</strong> Upload PDF, TXT, Markdown, or JSON files containing questions
+          </div>
+          <div>
+            <strong>📋 Copy/Paste:</strong> Paste questions directly from any source
+          </div>
+          <div>
+            <strong>🖼️ Image/PDF:</strong> Upload scanned papers or screenshots (AI will extract text)
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

@@ -18,20 +18,44 @@ export async function POST(req: Request) {
     const command = formData.get('command') as string | null;
     const file = formData.get('file') as File | null;
 
+    console.log('=== AI Admin Request ===');
+    console.log('Command:', command);
+    console.log('File:', file ? `${file.name} (${file.size} bytes, ${file.type})` : 'None');
+
+    if (!command && !file) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Please provide either a command or upload a file'
+      }, { status: 400 });
+    }
+
     let result: any = {};
 
     // Handle command-based exam creation
     if (command) {
       console.log(`Processing command: ${command}`);
-      result.examStructure = await handleExamCreationCommand(command);
+      try {
+        result.examStructure = await handleExamCreationCommand(command);
+        console.log('✅ Command processing successful');
+      } catch (error) {
+        console.error('❌ Command processing failed:', error);
+        throw error;
+      }
     }
 
     // Handle file-based question uploading
     if (file) {
       console.log(`Processing file: ${file.name}`);
-      result.questions = await handleQuestionUpload(file);
+      try {
+        result.questions = await handleQuestionUpload(file);
+        console.log('✅ File processing successful');
+      } catch (error) {
+        console.error('❌ File processing failed:', error);
+        throw error;
+      }
     }
 
+    console.log('=== AI Admin Success ===');
     return NextResponse.json({ 
       success: true,
       message: 'AI processing completed successfully',
@@ -39,10 +63,14 @@ export async function POST(req: Request) {
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Error in AI admin route:', error);
+    console.error('=== AI Admin Error ===');
+    console.error('Error details:', error);
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    
     return NextResponse.json({ 
       success: false,
-      error: error instanceof Error ? error.message : 'Internal Server Error'
+      error: error instanceof Error ? error.message : 'Internal Server Error',
+      details: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
 }
