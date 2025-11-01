@@ -1,7 +1,7 @@
 "use client"
 
 import { signIn } from "next-auth/react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Chrome, Trophy, Target, Zap, Users, BookOpen } from "lucide-react"
 
@@ -54,11 +54,25 @@ const testimonials = [
   }
 ]
 
+function LoginErrorBanner() {
+  const searchParams = useSearchParams()
+  const errorParam = searchParams?.get('error')
+  if (!errorParam) return null
+  return (
+    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950 dark:text-red-200">
+      {errorParam === 'OAuthSignin' && 'OAuth Sign-in failed. Please try again.'}
+      {errorParam === 'OAuthCallback' && 'OAuth callback failed. Check NEXTAUTH_URL, Google redirect URIs, and environment variables.'}
+      {errorParam === 'OAuthAccountNotLinked' && 'Account exists with different sign-in method. Try another provider or contact support.'}
+      {errorParam !== 'OAuthSignin' && errorParam !== 'OAuthCallback' && errorParam !== 'OAuthAccountNotLinked' && (
+        <>Login error: <span className="font-mono">{errorParam}</span></>
+      )}
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [currentFeature, setCurrentFeature] = useState(0)
-  const searchParams = useSearchParams()
-  const errorParam = searchParams?.get('error')
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
@@ -73,7 +87,7 @@ export default function LoginPage() {
   // Auto-rotate features
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentFeature((prev) => (prev + 1) % features.length)
+      setCurrentFeature((prev: number) => (prev + 1) % features.length)
     }, 4000)
     return () => clearInterval(interval)
   }, [])
@@ -175,17 +189,10 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Auth error helper (if any) */}
-          {errorParam && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950 dark:text-red-200">
-              {errorParam === 'OAuthSignin' && 'OAuth Sign-in failed. Please try again.'}
-              {errorParam === 'OAuthCallback' && 'OAuth callback failed. Check NEXTAUTH_URL, Google redirect URIs, and environment variables.'}
-              {errorParam === 'OAuthAccountNotLinked' && 'Account exists with different sign-in method. Try another provider or contact support.'}
-              {errorParam !== 'OAuthSignin' && errorParam !== 'OAuthCallback' && errorParam !== 'OAuthAccountNotLinked' && (
-                <>Login error: <span className="font-mono">{errorParam}</span></>
-              )}
-            </div>
-          )}
+          {/* Auth error helper (wrapped in Suspense for useSearchParams) */}
+          <Suspense fallback={null}>
+            <LoginErrorBanner />
+          </Suspense>
 
           {/* Sign In Button */}
           <button
