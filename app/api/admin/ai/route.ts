@@ -3,14 +3,13 @@ import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth/next';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '@/lib/prisma';
-import pdf from 'pdf-parse';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user.role !== 'ADMIN') {
+  if (!session || (session.user as any).role !== 'ADMIN') {
     return new NextResponse('Unauthorized', { status: 403 });
   }
 
@@ -168,7 +167,10 @@ async function handleQuestionUpload(file: File) {
   if (file.type === 'application/pdf') {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const data = await pdf(buffer);
+    
+    // Dynamic import for pdf-parse
+    const pdfParse = await import('pdf-parse');
+    const data = await (pdfParse as any)(buffer);
     fileContent = data.text;
   } else {
     // Text files, markdown, JSON
