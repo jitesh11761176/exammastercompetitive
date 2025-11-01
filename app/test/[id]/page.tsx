@@ -73,7 +73,7 @@ export default function TestPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers })
       })
-      router.push(`/test/${testId}/result/${attemptId}`)
+      router.push(`/test/${testId}/result?attemptId=${attemptId}`)
     } catch (error) {
       console.error('Error submitting test:', error)
       setIsSubmitting(false)
