@@ -577,45 +577,56 @@ Extract and structure ALL questions NOW:`;
     } catch (parseError) {
       console.error('❌ JSON parse error on first attempt:', parseError);
       console.error('Error message:', parseError instanceof Error ? parseError.message : 'Unknown');
-      console.error('Problematic JSON (first 1000 chars):', cleanedText.substring(0, 1000));
+      console.error('Problematic character around position:', parseError instanceof Error && parseError.message.includes('position') ? parseError.message : 'Unknown position');
       
-      // Only try advanced cleaning if first parse fails
-      // DO NOT double-escape - the AI should return properly formatted JSON
-      try {
-        // Try minimal cleaning - just remove any stray newlines INSIDE strings
-        let fixedText = cleanedText;
-        
-        // Remove trailing commas before } or ]
-        fixedText = fixedText.replace(/,(\s*[}\]])/g, '$1');
-        
-        questions = JSON.parse(fixedText);
-        console.log('✅ Successfully parsed after removing trailing commas!');
-      } catch (secondError) {
-        console.error('❌ Still failed after minimal cleaning:', secondError);
-        console.error('This usually means the AI returned malformed JSON');
-        console.error('First 2000 chars of attempted JSON:', cleanedText.substring(0, 2000));
-        
-        // FALLBACK: Try smart pattern-based parser
-        console.log('🔄 Attempting fallback: Smart pattern-based parser...');
+      // Check if the issue is escaped backslashes in the response
+      // Sometimes AI returns: \"BENEVOLENT\" instead of "BENEVOLENT"
+      if (cleanedText.includes('\\"')) {
+        console.log('⚠️ Detected escaped quotes - the AI over-escaped the JSON');
         try {
-          const parsedQuestions = parseExamContent(fileContent);
-          if (parsedQuestions.length > 0) {
-            console.log(`✅ Smart parser extracted ${parsedQuestions.length} questions!`);
-            questions = convertToDBFormat(parsedQuestions, 'General');
-          } else {
-            throw new Error('Smart parser found no questions');
-          }
-        } catch (parserError) {
-          console.error('❌ Smart parser also failed:', parserError);
+          // Remove the extra escaping
+          let fixedText = cleanedText.replace(/\\"/g, '"');
+          questions = JSON.parse(fixedText);
+          console.log('✅ Successfully parsed after fixing escaped quotes!');
+        } catch (fixError) {
+          console.error('❌ Still failed after fixing quotes');
+          // Continue to next fallback
+        }
+      }
+      
+      // If still not parsed, try removing trailing commas
+      if (!questions) {
+        try {
+          let fixedText = cleanedText.replace(/,(\s*[}\]])/g, '$1');
+          questions = JSON.parse(fixedText);
+          console.log('✅ Successfully parsed after removing trailing commas!');
+        } catch (secondError) {
+          console.error('❌ Still failed after minimal cleaning:', secondError);
+          console.error('This usually means the AI returned malformed JSON');
+          console.error('First 2000 chars of attempted JSON:', cleanedText.substring(0, 2000));
           
-          // Provide helpful error message
-          const errorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
-          throw new Error(
-            `Failed to extract questions using both AI and pattern matching.\n` +
-            `AI Parse Error: ${errorMsg}\n` +
-            `Pattern Parser: ${parserError instanceof Error ? parserError.message : 'Failed'}\n` +
-            `Your file might be in an unsupported format. Please ensure questions are numbered (1., 2., etc.) with options (a), (b), (c), (d) and include an ANSWER KEY section.`
-          );
+          // FALLBACK: Try smart pattern-based parser
+          console.log('🔄 Attempting fallback: Smart pattern-based parser...');
+          try {
+            const parsedQuestions = parseExamContent(fileContent);
+            if (parsedQuestions.length > 0) {
+              console.log(`✅ Smart parser extracted ${parsedQuestions.length} questions!`);
+              questions = convertToDBFormat(parsedQuestions, 'General');
+            } else {
+              throw new Error('Smart parser found no questions');
+            }
+          } catch (parserError) {
+            console.error('❌ Smart parser also failed:', parserError);
+            
+            // Provide helpful error message
+            const errorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
+            throw new Error(
+              `Failed to extract questions using both AI and pattern matching.\n` +
+              `AI Parse Error: ${errorMsg}\n` +
+              `Pattern Parser: ${parserError instanceof Error ? parserError.message : 'Failed'}\n` +
+              `Your file might be in an unsupported format. Please ensure questions are numbered (1., 2., etc.) with options (a), (b), (c), (d) and include an ANSWER KEY section.`
+            );
+          }
         }
       }
     }
@@ -650,7 +661,47 @@ Extract and structure ALL questions NOW:`;
       message: `Successfully extracted and saved ${savedQuestions.length} questions to ${categoryName}`
     };
   } catch (error) {
-    console.error('Error in question upload:', error);
+    console.error('❌ Error in question upload (main catch):', error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    
+    // Try smart parser as last resort
+    console.log('🔄 Attempting smart pattern-based parser as final fallback...');
+    try {
+      const parsedQuestions = parseExamContent(fileContent);
+      if (parsedQuestions.length > 0) {
+        console.log(`✅ Smart parser successfully extracted ${parsedQuestions.length} questions!`);
+        const questions = convertToDBFormat(parsedQuestions, 'General');
+        
+        // Request confirmation if not confirmed
+        if (!confirmed) {
+          return {
+            requiresConfirmation: true,
+            confirmationType: 'questions',
+            action: `Upload ${questions.length} questions to category`,
+            details: {
+              category: 'General',
+              questionCount: questions.length,
+              fileName: file.name,
+              fileSize: `${(file.size / 1024).toFixed(2)} KB`,
+              note: 'Extracted using pattern matching (AI failed)'
+            }
+          };
+        }
+        
+        // Save questions
+        const savedQuestions = await saveQuestionsToDatabase(questions);
+        return {
+          extractedCount: questions.length,
+          savedCount: savedQuestions.length,
+          categoryName: 'General',
+          questions: savedQuestions,
+          message: `Successfully extracted and saved ${savedQuestions.length} questions using pattern matching`
+        };
+      }
+    } catch (parserError) {
+      console.error('❌ Smart parser also failed:', parserError);
+    }
+    
     throw new Error('Failed to extract questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
 }
