@@ -71,10 +71,18 @@ export const authOptions: NextAuthOptions = {
       return `${baseUrl}/dashboard`
     },
   },
-  events: {
-    error(error) {
-      // Surface detailed errors in Vercel logs to diagnose issues like DB connection failures
-      console.error('[NextAuth][events.error]', error)
+  logger: {
+    error(code: unknown, ...metadata: unknown[]) {
+      console.error('[NextAuth][error]', code, ...metadata)
+    },
+    warn(code: unknown, ...metadata: unknown[]) {
+      console.warn('[NextAuth][warn]', code, ...metadata)
+    },
+    debug(code: unknown, ...metadata: unknown[]) {
+      // Useful while debugging; keep but it's noisy
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[NextAuth][debug]', code, ...metadata)
+      }
     },
   },
   pages: {
