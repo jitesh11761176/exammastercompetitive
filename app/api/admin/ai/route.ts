@@ -51,53 +51,92 @@ export async function POST(req: Request) {
 async function handleExamCreationCommand(command: string) {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-  const prompt = `You are an expert exam creator for competitive exams in India. Based on the following command, create a comprehensive exam structure.
+  const prompt = `You are an elite exam architect with 15+ years of experience creating competitive exams for Indian government recruitment (SSC, UPSC, Railway, Banking, Police, Defence, Teaching jobs). You understand exam patterns, difficulty progression, and authentic question styles.
 
-Command: "${command}"
+## YOUR MISSION:
+Based on this command: "${command}"
 
-Generate a detailed exam structure with the following JSON format:
+Create a complete, professional-grade competitive exam that matches the EXACT pattern and difficulty of real Indian government exams.
+
+## CRITICAL REQUIREMENTS:
+
+### 1. EXAM PATTERN EXPERTISE
+- **SSC CGL/CHSL**: 4 sections (English, Reasoning, Math, GK), 100 questions, 60-120 mins
+- **Banking (IBPS/SBI)**: 5 sections (English, Reasoning, Quant, Computer, GK), 100 questions, 60 mins
+- **Railway (RRB)**: Math, Reasoning, GK, Current Affairs, 100 questions, 90 mins
+- **Police/Defence**: Physical standards, Reasoning, GK, Math, 100 questions, 90-120 mins
+- **Teaching (CTET/KVS/DSSSB)**: Child Development, Language, Math, EVS/Science/Social, 150 questions, 150 mins
+- **State PSC**: Varies by state, typically 150-200 questions, 180 mins
+
+### 2. QUESTION QUALITY STANDARDS
+- **EASY (30%)**: Direct recall, basic concepts, standard formulas
+- **MEDIUM (50%)**: Application-based, 2-step reasoning, pattern recognition
+- **HARD (20%)**: Multi-step analysis, advanced concepts, tricky options
+
+### 3. AUTHENTIC QUESTION CHARACTERISTICS
+- Use REAL exam language and phrasing
+- Include current affairs from last 6 months (if applicable)
+- Add numerical values, dates, names that feel authentic
+- Create distractors (wrong options) that are plausible but clearly incorrect
+- Mix theoretical and practical questions
+
+### 4. EXPLANATION EXCELLENCE
+Each explanation must include:
+- Why the correct answer is right
+- Why other options are wrong (if relevant)
+- Key concept/formula/fact used
+- Memory tip or shortcut (where applicable)
+
+### 5. SUBJECT/TOPIC ACCURACY
+Assign precise subjects and topics:
+- General Knowledge → Indian History, Geography, Polity, Economy, Science
+- Reasoning → Logical, Verbal, Non-Verbal, Analytical
+- Mathematics → Arithmetic, Algebra, Geometry, Data Interpretation
+- English → Grammar, Vocabulary, Comprehension, Sentence Correction
+
+## OUTPUT FORMAT (STRICT JSON):
 
 {
-  "examName": "Name of the exam (e.g., Delhi Police Constable 2024)",
-  "category": "Category name (e.g., Police & Defence)",
-  "description": "Brief description of the exam",
-  "duration": 120,
-  "totalQuestions": 100,
-  "totalMarks": 100,
-  "passingMarks": 40,
+  "examName": "Full official exam name with year",
+  "category": "Exact category (e.g., 'SSC & Railway', 'Banking & Finance', 'Police & Defence', 'Teaching & Education')",
+  "description": "2-3 sentence professional description including eligibility and exam purpose",
+  "duration": <total_minutes>,
+  "totalQuestions": <count>,
+  "totalMarks": <usually same as questions>,
+  "passingMarks": <typically 40% of total for general category>,
   "sections": [
     {
-      "name": "Section name (e.g., General Knowledge)",
-      "duration": 30,
+      "name": "Section Name",
+      "duration": <minutes_for_this_section>,
       "questions": [
         {
-          "questionText": "Question text here",
-          "optionA": "First option",
-          "optionB": "Second option",
-          "optionC": "Third option",
-          "optionD": "Fourth option",
+          "questionText": "Complete question with all context",
+          "optionA": "Plausible option A",
+          "optionB": "Plausible option B",
+          "optionC": "Plausible option C",
+          "optionD": "Plausible option D",
           "correctOption": "A",
-          "explanation": "Detailed explanation of why this answer is correct",
-          "difficulty": "MEDIUM",
+          "explanation": "Comprehensive 3-4 line explanation with concept + why correct + why others wrong",
+          "difficulty": "EASY|MEDIUM|HARD",
           "marks": 1,
           "negativeMarks": 0.25,
-          "subject": "Subject name",
-          "topic": "Topic name"
+          "subject": "Specific subject name",
+          "topic": "Precise topic name"
         }
       ]
     }
   ]
 }
 
-Important guidelines:
-- Generate realistic questions based on the exam pattern
-- Include proper explanations for each answer
-- Ensure questions are relevant to the exam type
-- Use appropriate difficulty levels
-- Include negative marking where applicable
-- Return ONLY valid JSON, no markdown formatting
+## CRITICAL RULES:
+✓ Return ONLY valid JSON (no markdown, no code blocks, no extra text)
+✓ Generate ALL questions (don't skip or summarize)
+✓ Use authentic Indian exam language and references
+✓ Ensure variety in topics within each section
+✓ Balance difficulty: 30% easy, 50% medium, 20% hard
+✓ Make every question exam-ready (can be used as-is)
 
-Generate the complete exam structure now.`;
+Generate the complete exam structure NOW:`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -140,41 +179,111 @@ async function handleQuestionUpload(file: File) {
 
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-  const prompt = `You are an expert at extracting and structuring exam questions from documents. 
+  const prompt = `You are a master question extractor and competitive exam content specialist. You have processed 10,000+ exam papers and can extract, structure, and enhance questions from any format.
 
-Analyze the following content and extract all questions with their answers:
+## YOUR MISSION:
+Extract ALL questions from this document and convert them into a perfectly structured database-ready format.
 
-${fileContent}
+## DOCUMENT CONTENT:
+${fileContent.substring(0, 15000)} ${fileContent.length > 15000 ? '...(content truncated)' : ''}
 
-Convert them into a structured JSON array with this exact format:
+## EXTRACTION INTELLIGENCE:
+
+### 1. QUESTION DETECTION
+Identify questions by these patterns:
+- Numbered items (1., Q1, Question 1, etc.)
+- Question marks (?)
+- Instruction phrases ("Choose the correct", "Select", "Find", "Calculate")
+- MCQ patterns (A), B), C), D) or (a), (b), (c), (d)
+- True/False statements
+- Fill in the blanks with options
+
+### 2. OPTION PARSING
+Extract options intelligently:
+- Handle formats: A), (A), a., A., [A], Option A:
+- Detect when options are on same line vs separate lines
+- Identify answer keys: "Answer: A", "Ans: A", "Correct: A", "(A)"
+- Handle missing options (convert to SUBJECTIVE type)
+
+### 3. ANSWER EXTRACTION
+Find answers from:
+- Answer keys at end of document
+- Marked correct options (✓, *, bold)
+- "Answer:" or "Ans:" labels
+- Answer sheets in different sections
+- Explanations that reveal the answer
+
+### 4. SUBJECT & TOPIC INFERENCE
+Intelligently categorize based on:
+- Document title/header
+- Question keywords and domain
+- Common exam patterns
+- Content analysis
+
+**Subject Classification:**
+- Math keywords: calculate, solve, equation, number, percentage, average
+- English: grammar, sentence, vocabulary, comprehension, passage
+- Reasoning: logical, series, pattern, analogy, coding-decoding
+- General Knowledge: history, geography, politics, current affairs, science
+- Computer: programming, software, hardware, internet, database
+
+**Topic Precision:**
+- Math → Arithmetic, Algebra, Geometry, Trigonometry, Statistics
+- English → Grammar, Vocabulary, Comprehension, Idioms, Sentence Formation
+- Reasoning → Logical Reasoning, Verbal Reasoning, Analytical Reasoning
+- GK → Indian History, World History, Geography, Polity, Economy, Science, Current Affairs
+
+### 5. EXPLANATION GENERATION
+If explanation is missing, generate a concise one:
+- State the correct answer clearly
+- Briefly explain why it's correct
+- Mention the concept/rule/fact used
+- Keep it 2-3 lines maximum
+
+### 6. DIFFICULTY ASSESSMENT
+Assign difficulty based on:
+- **EASY**: Direct recall, basic calculation, simple grammar
+- **MEDIUM**: Application of concepts, 2-step reasoning, moderate complexity
+- **HARD**: Complex analysis, multi-step solution, advanced concepts
+
+## OUTPUT FORMAT (STRICT JSON ARRAY):
 
 [
   {
-    "questionText": "The complete question text",
-    "optionA": "First option (if MCQ)",
-    "optionB": "Second option (if MCQ)",
-    "optionC": "Third option (if MCQ)",
-    "optionD": "Fourth option (if MCQ)",
-    "correctOption": "A" (or B, C, D for MCQ),
-    "explanation": "Detailed explanation of the answer",
-    "difficulty": "EASY" or "MEDIUM" or "HARD",
+    "questionText": "Complete question text (cleaned and formatted)",
+    "optionA": "Option A text (null if not MCQ)",
+    "optionB": "Option B text (null if not MCQ)",
+    "optionC": "Option C text (null if not MCQ)",
+    "optionD": "Option D text (null if not MCQ)",
+    "correctOption": "A (or B/C/D for MCQ, null for subjective)",
+    "explanation": "Clear explanation with reasoning (generate if missing)",
+    "difficulty": "EASY|MEDIUM|HARD",
     "marks": 1,
     "negativeMarks": 0.25,
-    "subject": "Subject name (infer from question)",
-    "topic": "Topic name (infer from question)",
-    "questionType": "MCQ" or "SUBJECTIVE" or "TRUE_FALSE"
+    "subject": "Specific subject name (e.g., 'General Knowledge', 'Mathematics')",
+    "topic": "Precise topic (e.g., 'Indian History', 'Algebra', 'Grammar')",
+    "questionType": "MCQ|SUBJECTIVE|TRUE_FALSE"
   }
 ]
 
-Guidelines:
-- Extract ALL questions found in the document
-- Infer subject and topic from the question content
-- If options are not provided, set questionType to "SUBJECTIVE"
-- Ensure explanations are clear and educational
-- Assign appropriate difficulty levels
-- Return ONLY valid JSON array, no markdown formatting
+## CRITICAL RULES:
+✓ Extract EVERY question found (don't skip any)
+✓ Clean text: remove extra spaces, line breaks, formatting artifacts
+✓ If answer is unclear, make best educated guess based on context
+✓ Generate explanations for questions without them
+✓ Return ONLY valid JSON array (no markdown, no text, no code blocks)
+✓ Maintain question numbering order from document
+✓ Handle incomplete questions gracefully (use available information)
+✓ For subjective questions, set optionA-D to null and correctOption to null
 
-Extract and structure the questions now.`;
+## QUALITY CHECKS:
+- Each question must have questionText
+- MCQ must have all 4 options and correctOption
+- Subject and topic must be meaningful (not "General" unless truly general)
+- Difficulty must reflect actual complexity
+- Explanation must be helpful and accurate
+
+Extract and structure ALL questions NOW:`;
 
   try {
     const result = await model.generateContent(prompt);
