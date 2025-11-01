@@ -297,38 +297,48 @@ Generate the complete exam structure NOW:`;
     const response = await result.response;
     const text = response.text();
     
-    console.log('Raw AI response length:', text.length);
-    console.log('First 500 chars:', text.substring(0, 500));
+    console.log('========== EXAM CREATION AI RESPONSE ==========');
+    console.log('Raw response length:', text.length);
+    console.log('First 1000 chars:', text.substring(0, 1000));
+    console.log('Last 500 chars:', text.substring(text.length - 500));
+    console.log('=============================================');
     
     // Extract JSON from the response (remove markdown code blocks if present)
-    let cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let cleanedText = text.trim();
+    cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
     
     // Find the JSON object by looking for the outermost braces
     const startIndex = cleanedText.indexOf('{');
     const endIndex = cleanedText.lastIndexOf('}');
     
     if (startIndex === -1 || endIndex === -1) {
-      throw new Error('No valid JSON object found in response');
+      console.error('No JSON object brackets found!');
+      throw new Error(`No valid JSON object found in response. Starts with: ${cleanedText.substring(0, 200)}...`);
     }
     
     cleanedText = cleanedText.substring(startIndex, endIndex + 1);
     
+    console.log('Extracted JSON object (first 500 chars):', cleanedText.substring(0, 500));
+    
     let examStructure;
     try {
+      // Try parsing directly first
       examStructure = JSON.parse(cleanedText);
+      console.log('✅ Successfully parsed exam JSON on first attempt!');
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Problematic JSON:', cleanedText.substring(0, 1000));
+      console.error('❌ JSON parse error:', parseError);
+      console.error('Problematic JSON (first 1000 chars):', cleanedText.substring(0, 1000));
       
-      // Try to fix common JSON issues
-      cleanedText = cleanedText
-        .replace(/\n/g, '\\n')  // Escape newlines
-        .replace(/\r/g, '\\r')  // Escape carriage returns
-        .replace(/\t/g, '\\t')  // Escape tabs
-        .replace(/[\u0000-\u001F]/g, ''); // Remove control characters
-      
-      // Try parsing again
-      examStructure = JSON.parse(cleanedText);
+      // Try minimal cleaning - just remove trailing commas
+      try {
+        let fixedText = cleanedText.replace(/,(\s*[}\]])/g, '$1');
+        examStructure = JSON.parse(fixedText);
+        console.log('✅ Successfully parsed after removing trailing commas!');
+      } catch (secondError) {
+        console.error('❌ Still failed after cleaning:', secondError);
+        const errorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
+        throw new Error(`Failed to parse exam JSON. Error: ${errorMsg}`);
+      }
     }
     
     // Save to database
@@ -555,31 +565,44 @@ Extract and structure ALL questions NOW:`;
     cleanedText = cleanedText.substring(startIndex, endIndex + 1);
     
     console.log('Extracted JSON (first 500 chars):', cleanedText.substring(0, 500));
+    console.log('Extracted JSON (last 200 chars):', cleanedText.substring(cleanedText.length - 200));
     
     let questions;
     try {
+      // Try parsing directly first - AI usually returns valid JSON
       questions = JSON.parse(cleanedText);
+      console.log('✅ Successfully parsed JSON on first attempt!');
+      console.log(`Extracted ${questions.length} questions`);
     } catch (parseError) {
-      console.error('❌ JSON parse error:', parseError);
-      console.error('Problematic JSON (first 2000 chars):', cleanedText.substring(0, 2000));
+      console.error('❌ JSON parse error on first attempt:', parseError);
+      console.error('Error message:', parseError instanceof Error ? parseError.message : 'Unknown');
+      console.error('Problematic JSON (first 1000 chars):', cleanedText.substring(0, 1000));
       
-      // Try to fix common JSON issues
-      cleanedText = cleanedText
-        .replace(/\\/g, '\\\\')  // Escape backslashes first
-        .replace(/\n/g, '\\n')  // Escape newlines
-        .replace(/\r/g, '\\r')  // Escape carriage returns
-        .replace(/\t/g, '\\t')  // Escape tabs
-        .replace(/[\u0000-\u001F]/g, '') // Remove control characters
-        .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
-      
-      console.log('Attempting parse with cleaned JSON...');
-      
+      // Only try advanced cleaning if first parse fails
+      // DO NOT double-escape - the AI should return properly formatted JSON
       try {
-        questions = JSON.parse(cleanedText);
-        console.log('✅ Successfully parsed after cleaning!');
+        // Try minimal cleaning - just remove any stray newlines INSIDE strings
+        let fixedText = cleanedText;
+        
+        // Remove trailing commas before } or ]
+        fixedText = fixedText.replace(/,(\s*[}\]])/g, '$1');
+        
+        questions = JSON.parse(fixedText);
+        console.log('✅ Successfully parsed after removing trailing commas!');
       } catch (secondError) {
-        console.error('❌ Still failed after cleaning:', secondError);
-        throw new Error(`Failed to parse AI response as JSON. The AI might not be returning proper JSON format. Error: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`);
+        console.error('❌ Still failed after minimal cleaning:', secondError);
+        console.error('This usually means the AI returned malformed JSON');
+        console.error('First 2000 chars of attempted JSON:', cleanedText.substring(0, 2000));
+        
+        // Provide helpful error message
+        const errorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
+        const jsonPreview = cleanedText.substring(0, 500);
+        throw new Error(
+          `Failed to parse AI response as valid JSON.\n` +
+          `Parse Error: ${errorMsg}\n` +
+          `JSON Preview: ${jsonPreview}...\n` +
+          `Please try uploading the file again. If the error persists, the file format may not be supported.`
+        );
       }
     }
     
