@@ -129,6 +129,9 @@ Assign precise subjects and topics:
 
 ## CRITICAL RULES:
 ✓ Return ONLY valid JSON (no markdown, no code blocks, no extra text)
+✓ Escape all special characters in strings (quotes, newlines, backslashes)
+✓ Use \\n for line breaks within text, not actual newlines
+✓ Do not use smart quotes (" ") or apostrophes ('), use straight quotes only
 ✓ Generate ALL questions (don't skip or summarize)
 ✓ Use authentic Indian exam language and references
 ✓ Ensure variety in topics within each section
@@ -142,9 +145,39 @@ Generate the complete exam structure NOW:`;
     const response = await result.response;
     const text = response.text();
     
+    console.log('Raw AI response length:', text.length);
+    console.log('First 500 chars:', text.substring(0, 500));
+    
     // Extract JSON from the response (remove markdown code blocks if present)
-    const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const examStructure = JSON.parse(cleanedText);
+    let cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Find the JSON object by looking for the outermost braces
+    const startIndex = cleanedText.indexOf('{');
+    const endIndex = cleanedText.lastIndexOf('}');
+    
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error('No valid JSON object found in response');
+    }
+    
+    cleanedText = cleanedText.substring(startIndex, endIndex + 1);
+    
+    let examStructure;
+    try {
+      examStructure = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Problematic JSON:', cleanedText.substring(0, 1000));
+      
+      // Try to fix common JSON issues
+      cleanedText = cleanedText
+        .replace(/\n/g, '\\n')  // Escape newlines
+        .replace(/\r/g, '\\r')  // Escape carriage returns
+        .replace(/\t/g, '\\t')  // Escape tabs
+        .replace(/[\u0000-\u001F]/g, ''); // Remove control characters
+      
+      // Try parsing again
+      examStructure = JSON.parse(cleanedText);
+    }
     
     // Save to database
     const savedExam = await saveExamToDatabase(examStructure);
