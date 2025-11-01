@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  Shield
+  Shield,
+  BookOpen
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -29,7 +30,8 @@ export default function DashboardLayout({
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Tests', href: '/tests', icon: FileText },
+    { name: 'My Exams', href: '/exams', icon: BookOpen },
+    { name: 'All Tests', href: '/tests', icon: FileText },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
     { name: 'Profile', href: '/profile', icon: User },
@@ -38,7 +40,7 @@ export default function DashboardLayout({
   // Add admin links if user is an admin
   if ((session?.user as any)?.role === 'ADMIN') {
     navigation.push({ name: 'Admin AI', href: '/admin/ai', icon: Shield })
-    navigation.push({ name: 'All Tests', href: '/admin/tests', icon: FileText })
+    navigation.push({ name: 'All Tests (Admin)', href: '/admin/tests', icon: FileText })
   }
 
   return (
@@ -79,7 +81,7 @@ export default function DashboardLayout({
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
             {navigation.map((item) => {
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
               return (
                 <Link
                   key={item.name}

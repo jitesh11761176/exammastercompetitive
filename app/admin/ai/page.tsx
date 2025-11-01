@@ -100,7 +100,7 @@ export default function AiAdminPage() {
                 type="file"
                 onChange={handleFileChange}
                 disabled={isLoading}
-                accept=".pdf,.txt,.md,.json"
+                accept=".pdf,.txt,.md,.markdown,.json"
               />
               {file && <p className="text-sm text-muted-foreground">Selected file: {file.name}</p>}
             </div>

@@ -57,6 +57,20 @@ Based on this command: "${command}"
 
 Create a complete, professional-grade competitive exam that matches the EXACT pattern and difficulty of real Indian government exams.
 
+## CATEGORY INTELLIGENCE:
+Automatically determine the BEST category for this exam from these common categories:
+- **SSC & Railway** - SSC CGL, CHSL, MTS, RRB exams
+- **Banking & Finance** - IBPS, SBI, RBI exams
+- **Police & Defence** - Delhi Police, CRPF, Army, Navy, Air Force
+- **Teaching & Education** - CTET, KVS, DSSSB, NVS, TET
+- **State PSC** - UPPSC, BPSC, MPPSC, RPSC, UKPSC
+- **Engineering & Technical** - GATE, PSUs, Technical posts
+- **Medical & Healthcare** - NEET, AIIMS, Nursing exams
+- **Legal & Judicial** - CLAT, Judiciary, Law exams
+
+If the exam doesn't fit any above, CREATE A NEW CATEGORY with a professional name.
+Examples: "MPPSC & State Services", "Delhi Police Recruitment", "KVS Teaching Posts"
+
 ## CRITICAL REQUIREMENTS:
 
 ### 1. EXAM PATTERN EXPERTISE
@@ -97,7 +111,7 @@ Assign precise subjects and topics:
 
 {
   "examName": "Full official exam name with year",
-  "category": "Exact category (e.g., 'SSC & Railway', 'Banking & Finance', 'Police & Defence', 'Teaching & Education')",
+  "category": "Exact category name (use existing or create new professional name)",
   "description": "2-3 sentence professional description including eligibility and exam purpose",
   "duration": <total_minutes>,
   "totalQuestions": <count>,
@@ -195,9 +209,12 @@ Generate the complete exam structure NOW:`;
 
 async function handleQuestionUpload(file: File) {
   let fileContent = '';
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  
+  console.log('Processing file:', file.name, 'Type:', file.type, 'Extension:', fileExtension);
   
   // Extract text based on file type
-  if (file.type === 'application/pdf') {
+  if (file.type === 'application/pdf' || fileExtension === 'pdf') {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
@@ -205,9 +222,18 @@ async function handleQuestionUpload(file: File) {
     const pdfParse = await import('pdf-parse');
     const data = await (pdfParse as any)(buffer);
     fileContent = data.text;
-  } else {
+  } else if (
+    fileExtension === 'md' || 
+    fileExtension === 'markdown' || 
+    fileExtension === 'txt' || 
+    fileExtension === 'json' ||
+    file.type.includes('text') ||
+    file.type.includes('markdown')
+  ) {
     // Text files, markdown, JSON
     fileContent = await file.text();
+  } else {
+    throw new Error(`Unsupported file type: ${file.type}. Please upload PDF, TXT, MD, or JSON files.`);
   }
 
   console.log('Extracted file content length:', fileContent.length);
@@ -221,6 +247,26 @@ Extract ALL questions from this document and convert them into a perfectly struc
 
 ## DOCUMENT CONTENT:
 ${fileContent.substring(0, 15000)} ${fileContent.length > 15000 ? '...(content truncated)' : ''}
+
+## INTELLIGENT CATEGORIZATION:
+Analyze the document and questions to determine the BEST category. Use existing categories or create new ones:
+
+**Existing Categories:**
+- SSC & Railway
+- Banking & Finance  
+- Police & Defence
+- Teaching & Education
+- State PSC
+- Engineering & Technical
+- Medical & Healthcare
+- Legal & Judicial
+
+**Create New Category If Needed:**
+If questions are for MPPSC, UPPSC, specific state exams, or other unique exams, create a professional category name like:
+- "MPPSC & State Services"
+- "Delhi Police Recruitment"
+- "KVS Teaching Posts"
+- "Railway Technical Posts"
 
 ## EXTRACTION INTELLIGENCE:
 
@@ -297,7 +343,8 @@ Assign difficulty based on:
     "negativeMarks": 0.25,
     "subject": "Specific subject name (e.g., 'General Knowledge', 'Mathematics')",
     "topic": "Precise topic (e.g., 'Indian History', 'Algebra', 'Grammar')",
-    "questionType": "MCQ|SUBJECTIVE|TRUE_FALSE"
+    "questionType": "MCQ|SUBJECTIVE|TRUE_FALSE",
+    "category": "Intelligent category name based on document analysis"
   }
 ]
 
@@ -313,6 +360,7 @@ Assign difficulty based on:
 ✓ Maintain question numbering order from document
 ✓ Handle incomplete questions gracefully (use available information)
 ✓ For subjective questions, set optionA-D to null and correctOption to null
+✓ Add "category" field to each question based on document analysis
 
 ## QUALITY CHECKS:
 - Each question must have questionText
@@ -320,6 +368,7 @@ Assign difficulty based on:
 - Subject and topic must be meaningful (not "General" unless truly general)
 - Difficulty must reflect actual complexity
 - Explanation must be helpful and accurate
+- Category should be professionally named and consistent
 
 Extract and structure ALL questions NOW:`;
 
@@ -489,20 +538,24 @@ async function saveQuestionsToDatabase(questions: any[]) {
 
   for (const q of questions) {
     try {
-      // Find or create a default category for uploaded questions
+      // Use category from question or default to "General"
+      const categoryName = q.category || 'General';
+      
+      // Find or create category
       let category = await prisma.category.findFirst({
-        where: { slug: 'general' }
+        where: { name: categoryName }
       });
 
       if (!category) {
         category = await prisma.category.create({
           data: {
-            name: 'General',
-            slug: 'general',
-            description: 'General questions from uploads',
+            name: categoryName,
+            slug: categoryName.toLowerCase().replace(/\s+/g, '-').replace(/&/g, 'and'),
+            description: `Questions for ${categoryName} exams`,
             isActive: true
           }
         });
+        console.log(`Created new category: ${categoryName}`);
       }
 
       // Find or create subject

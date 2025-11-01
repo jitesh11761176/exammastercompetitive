@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { TestDeleteButton } from './test-delete-button'
 
 export default async function AdminTestsPage() {
   const session = await getServerSession(authOptions)
@@ -69,6 +70,7 @@ export default async function AdminTestsPage() {
                   <Link href={`/test/${test.id}`}>
                     <Button variant="outline" size="sm">View Test</Button>
                   </Link>
+                  <TestDeleteButton testId={test.id} testName={test.title} />
                 </div>
               </div>
             </CardHeader>
