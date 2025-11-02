@@ -825,7 +825,7 @@ enum PurchaseType {
 enum PaymentStatus {
   PENDING
   PROCESSING
-  SUCCESS
+  SUCCEEDED
   FAILED
   REFUNDED
 }

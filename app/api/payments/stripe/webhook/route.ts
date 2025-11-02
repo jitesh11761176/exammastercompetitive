@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
+import { PaymentStatus } from '@prisma/client'
 import Stripe from 'stripe'
 
 // Configure route to handle raw body for Stripe webhook signature verification
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
               amount: session.amount_total! / 100,
               currency: session.currency!.toUpperCase(),
               paymentMethod: 'STRIPE',
-              status: 'SUCCEEDED',
+              status: PaymentStatus.SUCCEEDED,
               stripePaymentId: session.payment_intent as string,
               description: `${plan} subscription (${billingCycle})`,
               paidAt: new Date(),
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
                 amount: invoice.amount_paid / 100,
                 currency: invoice.currency.toUpperCase(),
                 paymentMethod: 'STRIPE',
-                status: 'SUCCEEDED',
+                status: PaymentStatus.SUCCEEDED,
                 stripePaymentId: (invoice as any).payment_intent as string,
                 description: 'Subscription renewal',
                 receiptUrl: invoice.hosted_invoice_url,
