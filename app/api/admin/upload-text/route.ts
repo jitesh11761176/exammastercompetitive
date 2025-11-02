@@ -34,7 +34,7 @@ function parseKVSFormat(content: string): ParsedQuestion[] {
       // Parse format like "General English: 1-b, 2-d, 3-c"
       const match = line.match(/^([^:]+):\s*(.+)$/)
       if (match) {
-        const subject = match[1].trim()
+        // match[1] contains subject name (not used in current parsing logic)
         const answers = match[2].split(',').map(a => a.trim())
         
         answers.forEach(answer => {
@@ -165,11 +165,12 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Found ${parsedQuestions.length} questions`)
 
     // Create or get category
+    const categorySlug = (categoryName || 'General').toLowerCase().replace(/\s+/g, '-')
     const category = await prisma.category.upsert({
-      where: { name: categoryName || 'General' },
+      where: { slug: categorySlug },
       create: {
         name: categoryName || 'General',
-        slug: (categoryName || 'General').toLowerCase().replace(/\s+/g, '-'),
+        slug: categorySlug,
         description: `Uploaded via Smart Parser on ${new Date().toLocaleDateString()}`,
         isActive: true
       },
@@ -193,16 +194,17 @@ export async function POST(request: NextRequest) {
     const createdQuestionIds: string[] = []
     
     for (const [subjectName, questions] of questionsBySubject) {
+      const subjectSlug = subjectName.toLowerCase().replace(/\s+/g, '-')
       const subject = await prisma.subject.upsert({
         where: { 
-          name_categoryId: {
-            name: subjectName,
-            categoryId: category.id
+          categoryId_slug: {
+            categoryId: category.id,
+            slug: subjectSlug
           }
         },
         create: {
           name: subjectName,
-          slug: subjectName.toLowerCase().replace(/\s+/g, '-'),
+          slug: subjectSlug,
           categoryId: category.id,
           isActive: true
         },
@@ -210,6 +212,28 @@ export async function POST(request: NextRequest) {
       })
 
       console.log(`✅ Created/found subject: ${subjectName}`)
+
+      // Create or get a default topic for this subject
+      const topicName = 'General'
+      const topicSlug = topicName.toLowerCase().replace(/\s+/g, '-')
+      let topic = await prisma.topic.findFirst({
+        where: {
+          slug: topicSlug,
+          subjectId: subject.id
+        }
+      })
+
+      if (!topic) {
+        topic = await prisma.topic.create({
+          data: {
+            name: topicName,
+            slug: topicSlug,
+            subjectId: subject.id,
+            difficulty: 'MEDIUM',
+            isActive: true
+          }
+        })
+      }
 
       // Create questions
       for (const q of questions) {
@@ -226,8 +250,7 @@ export async function POST(request: NextRequest) {
             marks: 1,
             negativeMarks: 0.25,
             difficulty: 'MEDIUM',
-            categoryId: category.id,
-            subjectId: subject.id,
+            topicId: topic.id,
             isActive: true
           }
         })
@@ -244,21 +267,16 @@ export async function POST(request: NextRequest) {
       const test = await prisma.test.create({
         data: {
           title: examTitle,
-          slug: examTitle.toLowerCase().replace(/\s+/g, '-'),
           description: `Auto-generated from Smart Parser on ${new Date().toLocaleDateString()}`,
           duration: Math.ceil(parsedQuestions.length * 0.75), // 45 seconds per question
+          totalQuestions: parsedQuestions.length,
           totalMarks: parsedQuestions.length,
           passingMarks: Math.ceil(parsedQuestions.length * 0.33),
+          questionIds: createdQuestionIds,
           categoryId: category.id,
           isFree: true,
           isActive: true,
-          testType: 'FULL_LENGTH',
-          testQuestions: {
-            create: createdQuestionIds.map((qId, index) => ({
-              questionId: qId,
-              order: index + 1
-            }))
-          }
+          testType: 'FULL_LENGTH'
         }
       })
 
