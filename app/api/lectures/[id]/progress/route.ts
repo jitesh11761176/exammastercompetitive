@@ -141,7 +141,7 @@ export async function POST(
 
 // GET /api/lectures/[id]/progress - Get video progress
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
