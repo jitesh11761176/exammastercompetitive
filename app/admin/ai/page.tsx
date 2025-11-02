@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Upload, FileText, Image as ImageIcon, Copy, Wand2, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Image as ImageIcon, Copy, Wand2, AlertCircle, Zap } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-type UploadMode = 'command' | 'file' | 'paste' | 'image';
+type UploadMode = 'command' | 'file' | 'paste' | 'image' | 'smart';
 
 interface ConfirmationData {
   type: 'category' | 'questions';
@@ -35,6 +35,11 @@ export default function AiAdminPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+  
+  // Smart Parser state
+  const [categoryName, setCategoryName] = useState('');
+  const [examTitle, setExamTitle] = useState('');
+  const [smartContent, setSmartContent] = useState('');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -196,6 +201,67 @@ export default function AiAdminPage() {
     toast.info('Action cancelled');
   };
 
+  // Smart Parser Handler - NO AI, pure regex parsing
+  const handleSmartParse = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!categoryName || !smartContent) {
+      toast.error('Please provide category name and exam content.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setResponse('');
+    toast.info('⚡ Parsing content with Smart Parser...');
+
+    try {
+      const response = await fetch('/api/admin/upload-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          categoryName,
+          examTitle: examTitle || undefined,
+          content: smartContent,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to parse content.');
+      }
+
+      // Display success message
+      let successMsg = `✅ Smart Parser Success!\n📁 Category: ${result.categoryName}\n📝 ${result.questionsCreated} questions created`;
+      
+      if (result.subjects?.length > 0) {
+        successMsg += `\n📚 Subjects: ${result.subjects.join(', ')}`;
+      }
+      
+      if (result.testId) {
+        successMsg += `\n🎯 Test created: ${result.examTitle}`;
+      }
+
+      toast.success(successMsg, { duration: 7000 });
+      setResponse(JSON.stringify(result, null, 2));
+      
+      // Reset form
+      setCategoryName('');
+      setExamTitle('');
+      setSmartContent('');
+      
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to parse content.';
+      toast.error(`❌ Error: ${errorMsg}`, { duration: 7000 });
+      setResponse(`Error: ${errorMsg}`);
+      console.error('Smart Parser Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-10 max-w-5xl">
       <Card>
@@ -208,7 +274,7 @@ export default function AiAdminPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             {/* Mode Selection */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <Button
                 type="button"
                 variant={mode === 'command' ? 'default' : 'outline'}
@@ -244,6 +310,15 @@ export default function AiAdminPage() {
               >
                 <ImageIcon className="w-5 h-5" />
                 <span className="text-xs">Image/PDF</span>
+              </Button>
+              <Button
+                type="button"
+                variant={mode === 'smart' ? 'default' : 'outline'}
+                className="h-20 flex flex-col gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white border-0"
+                onClick={() => setMode('smart')}
+              >
+                <Zap className="w-5 h-5" />
+                <span className="text-xs font-semibold">Smart Parser</span>
               </Button>
             </div>
 
@@ -347,6 +422,85 @@ export default function AiAdminPage() {
               </div>
             )}
 
+            {/* Smart Parser Mode - NO AI! */}
+            {mode === 'smart' && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Zap className="w-6 h-6 text-purple-600 mt-1" />
+                    <div>
+                      <h3 className="font-bold text-purple-900 mb-1">⚡ Smart Parser - AI-Free!</h3>
+                      <p className="text-sm text-purple-800">
+                        100% reliable pattern-based parsing. Perfect for structured exam papers with numbered questions and answer keys.
+                      </p>
+                      <p className="text-xs text-purple-700 mt-2">
+                        ✨ <strong>Works best with:</strong> KVS PRT, UPSC, SSC, Banking exams, or any numbered question format
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="categoryName" className="text-base font-semibold flex items-center gap-2">
+                    📁 Category Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="categoryName"
+                    placeholder="e.g., KVS PRT 2024"
+                    value={categoryName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCategoryName(e.target.value)}
+                    disabled={isLoading}
+                    className="font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Category will be auto-created if it doesn&apos;t exist
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="examTitle" className="text-base font-semibold flex items-center gap-2">
+                    🎯 Exam Title <span className="text-sm text-gray-500">(Optional)</span>
+                  </Label>
+                  <Input
+                    id="examTitle"
+                    placeholder="e.g., KVS PRT General English & Hindi - 180 Questions"
+                    value={examTitle}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExamTitle(e.target.value)}
+                    disabled={isLoading}
+                    className="font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If provided, a test will be created automatically
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="smartContent" className="text-base font-semibold flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Exam Content <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="smartContent"
+                    placeholder="Paste your exam content here...&#10;&#10;Example:&#10;GENERAL ENGLISH&#10;&#10;1. Choose the synonym of 'BENEVOLENT':&#10;(a) Kind&#10;(b) Cruel&#10;(c) Angry&#10;(d) Happy&#10;&#10;2. Fill in the blank: He ___ to school.&#10;(a) go&#10;(b) goes&#10;(c) going&#10;(d) gone&#10;&#10;ANSWER KEY&#10;General English: 1-a, 2-b"
+                    value={smartContent}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setSmartContent(e.target.value)}
+                    disabled={isLoading}
+                    className="min-h-[300px] font-mono text-sm"
+                  />
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <p className="text-sm font-semibold text-green-900 mb-2">📋 Supported Format:</p>
+                    <ul className="text-xs text-green-800 space-y-1">
+                      <li>✅ Numbered questions: <code>1. Question?</code></li>
+                      <li>✅ Options: <code>(a) Option A</code>, <code>(b) Option B</code>, etc.</li>
+                      <li>✅ Answer Key section: <code>ANSWER KEY</code></li>
+                      <li>✅ Subject mapping: <code>Subject: 1-a, 2-b, 3-c</code></li>
+                      <li>✅ Multiple subjects in same file</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Response Display */}
             {response && (
               <div className="space-y-2">
@@ -366,24 +520,49 @@ export default function AiAdminPage() {
                 setPasteContent('');
                 setFile(null);
                 setResponse('');
+                setCategoryName('');
+                setExamTitle('');
+                setSmartContent('');
               }}
               disabled={isLoading}
             >
               Clear All
             </Button>
-            <Button type="submit" disabled={isLoading} size="lg">
-              {isLoading ? (
-                <>
-                  <span className="animate-spin mr-2">⏳</span>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  Submit to AI
-                </>
-              )}
-            </Button>
+            {mode === 'smart' ? (
+              <Button 
+                type="button" 
+                onClick={handleSmartParse}
+                disabled={isLoading || !categoryName || !smartContent} 
+                size="lg"
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Parsing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5 mr-2" />
+                    Parse & Upload
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button type="submit" disabled={isLoading} size="lg">
+                {isLoading ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Submit to AI
+                  </>
+                )}
+              </Button>
+            )}
           </CardFooter>
         </form>
       </Card>
@@ -456,6 +635,10 @@ export default function AiAdminPage() {
           </div>
           <div>
             <strong>🖼️ Image/PDF:</strong> Upload scanned papers or screenshots (AI will extract text)
+          </div>
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-3">
+            <strong className="text-purple-900">⚡ Smart Parser (NEW!):</strong> 
+            <span className="text-purple-800"> 100% reliable AI-free parsing for structured exam papers. Perfect for KVS, UPSC, SSC formats with numbered questions and answer keys. No JSON errors, guaranteed success!</span>
           </div>
         </CardContent>
       </Card>

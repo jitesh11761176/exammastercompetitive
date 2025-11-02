@@ -161,7 +161,7 @@ export default function ExcelUploadPage() {
             <ul className="text-sm text-green-800 space-y-2 list-disc list-inside">
               <li>One question per row</li>
               <li>Correct answer: Use <strong>A, B, C, or D</strong> (uppercase)</li>
-              <li>Category: e.g., <strong>"KVS PRT"</strong>, <strong>"SSC CGL"</strong>, etc.</li>
+              <li>Category: e.g., <strong>&quot;KVS PRT&quot;</strong>, <strong>&quot;SSC CGL&quot;</strong>, etc.</li>
               <li>Save as <strong>.csv</strong> or <strong>.xlsx</strong></li>
             </ul>
           </div>
@@ -263,7 +263,7 @@ export default function ExcelUploadPage() {
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-green-600 font-bold">✓</span>
-                <span>Category will be auto-created if it doesn't exist</span>
+                <span>Category will be auto-created if it doesn&apos;t exist</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-green-600 font-bold">✓</span>
