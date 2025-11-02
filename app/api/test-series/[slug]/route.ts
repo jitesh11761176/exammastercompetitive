@@ -14,9 +14,9 @@ export async function GET(
 
     const testSeries = await prisma.testSeries.findUnique({
       where: { 
-        slug_examId: {
-          slug: slug,
+        examId_slug: {
           examId: req.nextUrl.searchParams.get('examId') || '',
+          slug: slug,
         }
       },
       include: {
@@ -38,7 +38,6 @@ export async function GET(
           select: {
             id: true,
             title: true,
-            slug: true,
             duration: true,
             totalQuestions: true,
             totalMarks: true,
@@ -112,9 +111,9 @@ export async function PUT(
 
     const testSeries = await prisma.testSeries.update({
       where: { 
-        slug_examId: {
-          slug: slug,
+        examId_slug: {
           examId: data.examId,
+          slug: slug,
         }
       },
       data: {
@@ -166,9 +165,9 @@ export async function DELETE(
 
     await prisma.testSeries.delete({
       where: { 
-        slug_examId: {
-          slug: slug,
+        examId_slug: {
           examId: examId,
+          slug: slug,
         }
       },
     })
