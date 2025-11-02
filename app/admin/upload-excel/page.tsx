@@ -32,9 +32,12 @@ export default function ExcelUploadPage() {
     try {
       const res = await fetch('/api/categories')
       const data = await res.json()
-      setCategories(data.categories || [])
+      console.log('Fetched categories:', data) // Debug log
+      // API returns array directly, not wrapped in categories property
+      setCategories(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching categories:', error)
+      toast.error('Failed to load categories')
     }
   }
 
