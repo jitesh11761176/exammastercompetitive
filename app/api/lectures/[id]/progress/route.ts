@@ -58,6 +58,16 @@ export async function POST(
     const progress = totalSeconds > 0 ? (watchedSeconds / totalSeconds) * 100 : 0
     const isCompleted = progress >= 90 // Consider completed at 90%
 
+    // Check for existing progress
+    const existingProgress = await prisma.videoProgress.findUnique({
+      where: {
+        userId_lectureId: {
+          userId: session.user.id,
+          lectureId,
+        },
+      },
+    })
+
     // Upsert video progress
     const videoProgress = await prisma.videoProgress.upsert({
       where: {
@@ -73,7 +83,7 @@ export async function POST(
         lastPosition,
         isCompleted,
         lastWatchedAt: new Date(),
-        completedAt: isCompleted && !videoProgress?.completedAt ? new Date() : undefined,
+        completedAt: isCompleted && !existingProgress?.completedAt ? new Date() : existingProgress?.completedAt,
       },
       create: {
         userId: session.user.id,
@@ -84,7 +94,7 @@ export async function POST(
         lastPosition,
         isCompleted,
         lastWatchedAt: new Date(),
-        completedAt: isCompleted ? new Date() : undefined,
+        completedAt: isCompleted ? new Date() : null,
       },
     })
 
