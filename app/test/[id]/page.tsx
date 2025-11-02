@@ -207,7 +207,7 @@ export default function TestPage() {
                   </div>
 
                   {/* Options */}
-                  {currentQuestion.questionType === 'SINGLE_CHOICE' && currentQuestion.options && currentQuestion.options.length > 0 ? (
+                  {(currentQuestion.questionType === 'MCQ' || currentQuestion.questionType === 'MSQ') && currentQuestion.options && currentQuestion.options.length > 0 ? (
                     <div className="space-y-3">
                       {currentQuestion.options.map((option: string, index: number) => {
                         const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
@@ -247,6 +247,7 @@ export default function TestPage() {
                   ) : (
                     <div className="p-8 text-center bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-yellow-800">No options available for this question</p>
+                      <p className="text-sm text-gray-600 mt-2">Question Type: {currentQuestion.questionType}</p>
                     </div>
                   )}
                 </div>
