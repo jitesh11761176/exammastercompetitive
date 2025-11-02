@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       }
 
       const [
-        questionNum,
+        , // questionNum - not used
         questionText,
         optionA,
         optionB,
@@ -187,28 +187,25 @@ export async function POST(request: NextRequest) {
         subjectsCreated.add(q.subject)
       }
 
-      // Create or get topic (if provided)
-      let topicId = null
-      if (q.topic) {
-        let topic = await prisma.topic.findFirst({
-          where: {
-            name: q.topic,
-            subjectId: subject.id
+      // Create or get topic (always create one if not provided)
+      const topicName = q.topic || 'General'
+      let topic = await prisma.topic.findFirst({
+        where: {
+          name: topicName,
+          subjectId: subject.id
+        }
+      })
+
+      if (!topic) {
+        topic = await prisma.topic.create({
+          data: {
+            name: topicName,
+            slug: topicName.toLowerCase().replace(/\s+/g, '-'),
+            subjectId: subject.id,
+            difficulty: q.difficulty,
+            isActive: true
           }
         })
-
-        if (!topic) {
-          topic = await prisma.topic.create({
-            data: {
-              name: q.topic,
-              slug: q.topic.toLowerCase().replace(/\s+/g, '-'),
-              subjectId: subject.id,
-              difficulty: q.difficulty,
-              isActive: true
-            }
-          })
-        }
-        topicId = topic.id
       }
 
       // Create question
@@ -225,9 +222,7 @@ export async function POST(request: NextRequest) {
           marks: q.marks,
           negativeMarks: 0.25, // Default negative marking
           difficulty: q.difficulty,
-          categoryId: category.id,
-          subjectId: subject.id,
-          topicId: topicId,
+          topicId: topic.id,
           isActive: true
         }
       })
