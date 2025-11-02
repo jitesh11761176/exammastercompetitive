@@ -39,7 +39,8 @@ function CourseCard({ course }: { course: any }) {
     <Card className="flex flex-col h-full">
       {/* Thumbnail */}
       {course.thumbnail && (
-        <div className="aspect-video w-full overflow-hidden rounded-t-lg">
+        <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-gray-200">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img 
             src={course.thumbnail} 
             alt={course.title}
@@ -149,7 +150,7 @@ export default async function CoursesPage() {
           <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-semibold mb-2">No Courses Available</h2>
           <p className="text-muted-foreground">
-            Check back soon! We're working on adding new courses.
+            Check back soon! We&apos;re working on adding new courses.
           </p>
         </Card>
       ) : (

@@ -96,6 +96,7 @@ export default function BulkUploadPage() {
           onClick={() => setUploadType('image')}
         >
           <CardContent className="pt-6 text-center">
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image className="w-12 h-12 mx-auto mb-3 text-blue-500" />
             <h3 className="font-semibold mb-1">Images</h3>
             <p className="text-sm text-gray-600">OCR extraction</p>
