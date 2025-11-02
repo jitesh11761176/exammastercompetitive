@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const createTest = formData.get('createTest') === 'true'
+    const testTitle = formData.get('testTitle') as string
     
     if (!file) {
       return NextResponse.json({ 
@@ -165,6 +167,7 @@ export async function POST(request: NextRequest) {
     // Create questions
     let questionsCreated = 0
     const subjectsCreated = new Set<string>()
+    const createdQuestionIds: string[] = []
 
     for (const q of questions) {
       // Create or get subject
@@ -209,7 +212,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create question
-      await prisma.question.create({
+      const question = await prisma.question.create({
         data: {
           questionText: q.questionText,
           questionType: 'MCQ',
@@ -227,18 +230,42 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      createdQuestionIds.push(question.id)
       questionsCreated++
     }
 
     console.log(`✅ Created ${questionsCreated} questions in ${subjectsCreated.size} subjects`)
 
+    // Create test if requested
+    let testCreatedTitle = null
+    if (createTest && testTitle && createdQuestionIds.length > 0) {
+      const test = await prisma.test.create({
+        data: {
+          title: testTitle,
+          description: `Auto-generated from Excel upload on ${new Date().toLocaleDateString()}`,
+          duration: Math.ceil(createdQuestionIds.length * 0.75), // 45 seconds per question
+          totalQuestions: createdQuestionIds.length,
+          totalMarks: questionsCreated,
+          passingMarks: Math.ceil(questionsCreated * 0.33),
+          questionIds: createdQuestionIds,
+          categoryId: category.id,
+          isFree: true,
+          isActive: true,
+          testType: 'FULL_LENGTH'
+        }
+      })
+      testCreatedTitle = test.title
+      console.log(`✅ Created test: ${test.title}`)
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Successfully uploaded ${questionsCreated} questions to category "${categoryName}"!`,
+      message: `Successfully uploaded ${questionsCreated} questions to category "${categoryName}"!${testCreatedTitle ? ` Test "${testCreatedTitle}" created!` : ''}`,
       data: {
         questionsCreated,
         category: categoryName,
-        subjectsCreated: subjectsCreated.size
+        subjectsCreated: subjectsCreated.size,
+        testCreated: testCreatedTitle
       }
     })
 

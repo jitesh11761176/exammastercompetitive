@@ -12,6 +12,8 @@ export default function ExcelUploadPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<any>(null)
+  const [createTest, setCreateTest] = useState(false)
+  const [testTitle, setTestTitle] = useState('')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -32,6 +34,10 @@ export default function ExcelUploadPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (createTest && testTitle) {
+        formData.append('createTest', 'true')
+        formData.append('testTitle', testTitle)
+      }
 
       const response = await fetch('/api/admin/upload-excel', {
         method: 'POST',
@@ -43,6 +49,8 @@ export default function ExcelUploadPage() {
       if (data.success) {
         toast.success(data.message)
         setFile(null)
+        setTestTitle('')
+        setCreateTest(false)
         // Reset file input
         const fileInput = document.getElementById('file-upload') as HTMLInputElement
         if (fileInput) fileInput.value = ''
@@ -182,26 +190,60 @@ export default function ExcelUploadPage() {
               </div>
 
               {file && (
-                <div className="flex items-center justify-between bg-white p-4 rounded-lg border-2 border-purple-300">
-                  <div className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-5 h-5 text-purple-600" />
-                    <span className="text-sm font-medium">{file.name}</span>
-                    <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(2)} KB)</span>
-                  </div>
-                  <Button onClick={handleUpload} disabled={uploading} size="lg">
-                    {uploading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Questions
-                      </>
+                <>
+                  {/* Optional Test Creation */}
+                  <div className="bg-white p-4 rounded-lg border-2 border-indigo-200">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <input
+                        type="checkbox"
+                        id="create-test"
+                        checked={createTest}
+                        onChange={(e) => setCreateTest(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded"
+                      />
+                      <Label htmlFor="create-test" className="font-semibold text-indigo-900 cursor-pointer">
+                        🎯 Create Test from Uploaded Questions
+                      </Label>
+                    </div>
+                    {createTest && (
+                      <div className="mt-3">
+                        <Label htmlFor="test-title" className="text-sm">Test Title</Label>
+                        <Input
+                          id="test-title"
+                          type="text"
+                          placeholder="e.g., KVS PRT General Knowledge - 180 Questions"
+                          value={testTitle}
+                          onChange={(e) => setTestTitle(e.target.value)}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          A complete test will be created with all uploaded questions
+                        </p>
+                      </div>
                     )}
-                  </Button>
-                </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-white p-4 rounded-lg border-2 border-purple-300">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="w-5 h-5 text-purple-600" />
+                      <span className="text-sm font-medium">{file.name}</span>
+                      <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(2)} KB)</span>
+                    </div>
+                    <Button onClick={handleUpload} disabled={uploading || (createTest && !testTitle)} size="lg">
+                      {uploading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Questions
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
           </div>
