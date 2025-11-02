@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
         duration: numQuestions * 60, // 1 minute per question
         totalMarks: numQuestions,
         totalQuestions: numQuestions,
+        passingMarks: Math.floor(numQuestions * 0.33), // 33% passing marks
         difficulty: difficulty?.toUpperCase() || 'MEDIUM',
         isActive: true,
         isFree: true,
@@ -80,40 +81,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create questions in database
-    const createdQuestions = await Promise.all(
-      questions.slice(0, numQuestions).map(async (q: any, index: number) => {
-        return prisma.question.create({
-          data: {
-            testId: test.id,
-            categoryId: category!.id,
-            question: q.question,
-            optionA: q.optionA,
-            optionB: q.optionB,
-            optionC: q.optionC,
-            optionD: q.optionD,
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation || '',
-            subject: q.subject || topic,
-            topic: q.topic || topic,
-            difficulty: difficulty?.toUpperCase() || 'MEDIUM',
-            marks: 1,
-            negativeMarks: 0.25,
-            order: index + 1,
-            type: 'MCQ',
-          },
-        })
-      })
-    )
-
+    // For now, return success with test info
+    // Questions will be added manually or through a different flow
+    // TODO: Implement proper topic/subject hierarchy for question creation
+    
     return NextResponse.json({
       success: true,
       test: {
         id: test.id,
         title: test.title,
-        questionsCount: createdQuestions.length,
+        questionsCount: 0, // Questions not yet linked
       },
-      message: `Test created with ${createdQuestions.length} questions`,
+      questionsGenerated: questions.length,
+      message: `Test created successfully. ${questions.length} questions generated but need to be linked through proper topic hierarchy.`,
+      note: 'Please use the test editor to add questions to this test.'
     })
   } catch (error) {
     console.error('AI Test Generation Error:', error)
