@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,29 @@ export default function ExcelUploadPage() {
   const [result, setResult] = useState<any>(null)
   const [createTest, setCreateTest] = useState(false)
   const [testTitle, setTestTitle] = useState('')
+  
+  // Category management
+  const [categories, setCategories] = useState<any[]>([])
+  const [categoryMode, setCategoryMode] = useState<'existing' | 'new' | 'nested'>('existing')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryDescription, setNewCategoryDescription] = useState('')
+  const [parentCategoryId, setParentCategoryId] = useState('')
+  const [nestedCategoryName, setNestedCategoryName] = useState('')
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      setCategories(data.categories || [])
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -28,12 +51,40 @@ export default function ExcelUploadPage() {
       return
     }
 
+    // Validate category selection
+    if (categoryMode === 'existing' && !selectedCategory) {
+      toast.error('Please select a category')
+      return
+    }
+    if (categoryMode === 'new' && !newCategoryName) {
+      toast.error('Please enter a new category name')
+      return
+    }
+    if (categoryMode === 'nested' && (!parentCategoryId || !nestedCategoryName)) {
+      toast.error('Please select a parent category and enter nested category name')
+      return
+    }
+
     setUploading(true)
     setResult(null)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
+      
+      // Category data
+      formData.append('categoryMode', categoryMode)
+      if (categoryMode === 'existing') {
+        formData.append('categoryId', selectedCategory)
+      } else if (categoryMode === 'new') {
+        formData.append('newCategoryName', newCategoryName)
+        formData.append('newCategoryDescription', newCategoryDescription)
+      } else if (categoryMode === 'nested') {
+        formData.append('parentCategoryId', parentCategoryId)
+        formData.append('nestedCategoryName', nestedCategoryName)
+      }
+      
+      // Test creation data
       if (createTest && testTitle) {
         formData.append('createTest', 'true')
         formData.append('testTitle', testTitle)
@@ -51,9 +102,15 @@ export default function ExcelUploadPage() {
         setFile(null)
         setTestTitle('')
         setCreateTest(false)
+        setNewCategoryName('')
+        setNewCategoryDescription('')
+        setNestedCategoryName('')
         // Reset file input
         const fileInput = document.getElementById('file-upload') as HTMLInputElement
         if (fileInput) fileInput.value = ''
+        
+        // Refresh categories
+        fetchCategories()
       } else {
         toast.error(data.message || 'Upload failed')
       }
@@ -172,6 +229,148 @@ export default function ExcelUploadPage() {
               <li>Category: e.g., <strong>&quot;KVS PRT&quot;</strong>, <strong>&quot;SSC CGL&quot;</strong>, etc.</li>
               <li>Save as <strong>.csv</strong> or <strong>.xlsx</strong></li>
             </ul>
+          </div>
+
+          {/* Category Selection - Step 2.5 */}
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
+            <h3 className="font-semibold text-orange-900 mb-4 text-lg">📁 Step 2.5: Select or Create Category</h3>
+            
+            {/* Category Mode Selection */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCategoryMode('existing')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    categoryMode === 'existing'
+                      ? 'border-orange-500 bg-orange-100 text-orange-900'
+                      : 'border-orange-200 bg-white text-gray-700 hover:border-orange-300'
+                  }`}
+                >
+                  <div className="font-semibold">Use Existing</div>
+                  <div className="text-xs mt-1">Select from list</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryMode('new')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    categoryMode === 'new'
+                      ? 'border-orange-500 bg-orange-100 text-orange-900'
+                      : 'border-orange-200 bg-white text-gray-700 hover:border-orange-300'
+                  }`}
+                >
+                  <div className="font-semibold">Create New</div>
+                  <div className="text-xs mt-1">New category</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryMode('nested')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    categoryMode === 'nested'
+                      ? 'border-orange-500 bg-orange-100 text-orange-900'
+                      : 'border-orange-200 bg-white text-gray-700 hover:border-orange-300'
+                  }`}
+                >
+                  <div className="font-semibold">Nested Category</div>
+                  <div className="text-xs mt-1">Subcategory</div>
+                </button>
+              </div>
+
+              {/* Existing Category */}
+              {categoryMode === 'existing' && (
+                <div className="bg-white p-4 rounded-lg border border-orange-200">
+                  <Label htmlFor="existing-category" className="font-medium">Select Category</Label>
+                  <select
+                    id="existing-category"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full mt-2 p-2 border rounded-md"
+                  >
+                    <option value="">-- Select a category --</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  {categories.length === 0 && (
+                    <p className="text-sm text-gray-500 mt-2">No categories yet. Create a new one!</p>
+                  )}
+                </div>
+              )}
+
+              {/* New Category */}
+              {categoryMode === 'new' && (
+                <div className="bg-white p-4 rounded-lg border border-orange-200 space-y-3">
+                  <div>
+                    <Label htmlFor="new-category-name" className="font-medium">
+                      Category Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="new-category-name"
+                      type="text"
+                      placeholder="e.g., KVS PRT 2024"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-category-desc" className="font-medium">
+                      Description (Optional)
+                    </Label>
+                    <Input
+                      id="new-category-desc"
+                      type="text"
+                      placeholder="e.g., Kendriya Vidyalaya Sangathan PRT Exam"
+                      value={newCategoryDescription}
+                      onChange={(e) => setNewCategoryDescription(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Nested Category */}
+              {categoryMode === 'nested' && (
+                <div className="bg-white p-4 rounded-lg border border-orange-200 space-y-3">
+                  <div>
+                    <Label htmlFor="parent-category" className="font-medium">
+                      Parent Category <span className="text-red-500">*</span>
+                    </Label>
+                    <select
+                      id="parent-category"
+                      value={parentCategoryId}
+                      onChange={(e) => setParentCategoryId(e.target.value)}
+                      className="w-full mt-1 p-2 border rounded-md"
+                    >
+                      <option value="">-- Select parent category --</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="nested-category-name" className="font-medium">
+                      Subcategory Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="nested-category-name"
+                      type="text"
+                      placeholder="e.g., Prelims, Mains, Interview"
+                      value={nestedCategoryName}
+                      onChange={(e) => setNestedCategoryName(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    💡 Nested categories help organize related exams (e.g., UPSC → Prelims, UPSC → Mains)
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Upload File */}

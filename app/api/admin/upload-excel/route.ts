@@ -19,6 +19,14 @@ export async function POST(request: NextRequest) {
     const createTest = formData.get('createTest') === 'true'
     const testTitle = formData.get('testTitle') as string
     
+    // Category handling
+    const categoryMode = formData.get('categoryMode') as string
+    const categoryId = formData.get('categoryId') as string
+    const newCategoryName = formData.get('newCategoryName') as string
+    const newCategoryDescription = formData.get('newCategoryDescription') as string
+    const parentCategoryId = formData.get('parentCategoryId') as string
+    const nestedCategoryName = formData.get('nestedCategoryName') as string
+    
     if (!file) {
       return NextResponse.json({ 
         success: false,
@@ -145,23 +153,131 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Parsed ${questions.length} valid questions`)
 
-    // Create or get category
-    let category = await prisma.category.findFirst({
-      where: { name: categoryName }
-    })
+    // Handle category based on mode
+    let category: any
 
-    if (!category) {
+    if (categoryMode === 'existing') {
+      // Use existing category
+      if (!categoryId) {
+        return NextResponse.json({
+          success: false,
+          message: 'Please select a category'
+        }, { status: 400 })
+      }
+      
+      category = await prisma.category.findUnique({
+        where: { id: categoryId }
+      })
+      
+      if (!category) {
+        return NextResponse.json({
+          success: false,
+          message: 'Selected category not found'
+        }, { status: 404 })
+      }
+      
+      console.log(`✅ Using existing category: ${category.name}`)
+      
+    } else if (categoryMode === 'new') {
+      // Create new category
+      if (!newCategoryName) {
+        return NextResponse.json({
+          success: false,
+          message: 'Please provide a category name'
+        }, { status: 400 })
+      }
+      
+      const categorySlug = newCategoryName.toLowerCase().replace(/\s+/g, '-')
+      
+      // Check if category already exists
+      const existingCategory = await prisma.category.findUnique({
+        where: { slug: categorySlug }
+      })
+      
+      if (existingCategory) {
+        return NextResponse.json({
+          success: false,
+          message: `Category "${newCategoryName}" already exists. Please use a different name or select the existing category.`
+        }, { status: 400 })
+      }
+      
       category = await prisma.category.create({
         data: {
-          name: categoryName,
-          slug: categoryName.toLowerCase().replace(/\s+/g, '-'),
-          description: `Uploaded via Excel on ${new Date().toLocaleDateString()}`,
+          name: newCategoryName,
+          slug: categorySlug,
+          description: newCategoryDescription || `Created via Excel upload on ${new Date().toLocaleDateString()}`,
           isActive: true
         }
       })
-      console.log(`✅ Created category: ${categoryName}`)
+      
+      console.log(`✅ Created new category: ${category.name}`)
+      
+    } else if (categoryMode === 'nested') {
+      // Create nested category (for now, we'll create it as a separate category with a reference in the name)
+      // In the future, you might want to add a parentCategoryId field to the Category model
+      if (!parentCategoryId || !nestedCategoryName) {
+        return NextResponse.json({
+          success: false,
+          message: 'Please select a parent category and provide a subcategory name'
+        }, { status: 400 })
+      }
+      
+      const parentCategory = await prisma.category.findUnique({
+        where: { id: parentCategoryId }
+      })
+      
+      if (!parentCategory) {
+        return NextResponse.json({
+          success: false,
+          message: 'Parent category not found'
+        }, { status: 404 })
+      }
+      
+      // Create nested category with parent name prefix
+      const fullCategoryName = `${parentCategory.name} - ${nestedCategoryName}`
+      const categorySlug = fullCategoryName.toLowerCase().replace(/\s+/g, '-')
+      
+      // Check if nested category already exists
+      const existingCategory = await prisma.category.findUnique({
+        where: { slug: categorySlug }
+      })
+      
+      if (existingCategory) {
+        category = existingCategory
+        console.log(`✅ Using existing nested category: ${category.name}`)
+      } else {
+        category = await prisma.category.create({
+          data: {
+            name: fullCategoryName,
+            slug: categorySlug,
+            description: `Subcategory of ${parentCategory.name}, created via Excel upload on ${new Date().toLocaleDateString()}`,
+            isActive: true
+          }
+        })
+        console.log(`✅ Created nested category: ${category.name}`)
+      }
+      
     } else {
-      console.log(`✅ Using existing category: ${categoryName}`)
+      // Fallback: Use category from CSV file
+      let fallbackCategoryName = categoryName || 'General'
+      
+      category = await prisma.category.findFirst({
+        where: { name: fallbackCategoryName }
+      })
+
+      if (!category) {
+        category = await prisma.category.create({
+          data: {
+            name: fallbackCategoryName,
+            slug: fallbackCategoryName.toLowerCase().replace(/\s+/g, '-'),
+            description: `Uploaded via Excel on ${new Date().toLocaleDateString()}`,
+            isActive: true
+          }
+        })
+        console.log(`✅ Created category: ${fallbackCategoryName}`)
+      } else {
+        console.log(`✅ Using existing category: ${fallbackCategoryName}`)
+      }
     }
 
     // Create questions
