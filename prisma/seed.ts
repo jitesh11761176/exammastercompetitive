@@ -987,6 +987,282 @@ async function main() {
   console.log(`✅ Created ${badges.length} badges\n`)
 
   // ============================================================================
+  // EXAM CATEGORIES, EXAMS & TEST SERIES
+  // ============================================================================
+  console.log('🎓 Creating Exam Categories & Exams...')
+
+  const examCategories = await Promise.all([
+    prisma.examCategory.create({
+      data: {
+        name: 'Engineering',
+        slug: 'engineering',
+        description: 'JEE, GATE, ISRO, BARC and other engineering exams',
+        icon: 'Cpu',
+        order: 1,
+      },
+    }),
+    prisma.examCategory.create({
+      data: {
+        name: 'Medical',
+        slug: 'medical',
+        description: 'NEET, AIIMS, JIPMER and other medical entrance exams',
+        icon: 'Stethoscope',
+        order: 2,
+      },
+    }),
+    prisma.examCategory.create({
+      data: {
+        name: 'Government Jobs',
+        slug: 'government',
+        description: 'SSC, Banking, Railways, UPSC and other govt exams',
+        icon: 'Building',
+        order: 3,
+      },
+    }),
+  ])
+
+  console.log(`✅ Created ${examCategories.length} exam categories\n`)
+
+  // Create Exams
+  console.log('📝 Creating Exams...')
+
+  const exams = await Promise.all([
+    prisma.exam.create({
+      data: {
+        categoryId: examCategories[0].id, // Engineering
+        name: 'JEE Main',
+        slug: 'jee-main',
+        description: 'Joint Entrance Examination for engineering admissions',
+        pattern: {
+          totalMarks: 300,
+          duration: 180,
+          sections: ['Physics', 'Chemistry', 'Mathematics'],
+        },
+        totalMarks: 300,
+        duration: 180,
+        order: 1,
+      },
+    }),
+    prisma.exam.create({
+      data: {
+        categoryId: examCategories[0].id, // Engineering
+        name: 'JEE Advanced',
+        slug: 'jee-advanced',
+        description: 'Advanced level exam for IIT admissions',
+        pattern: {
+          totalMarks: 360,
+          duration: 360,
+          sections: ['Physics', 'Chemistry', 'Mathematics'],
+        },
+        totalMarks: 360,
+        duration: 360,
+        order: 2,
+      },
+    }),
+    prisma.exam.create({
+      data: {
+        categoryId: examCategories[1].id, // Medical
+        name: 'NEET UG',
+        slug: 'neet-ug',
+        description: 'National Eligibility cum Entrance Test for medical admissions',
+        pattern: {
+          totalMarks: 720,
+          duration: 200,
+          sections: ['Physics', 'Chemistry', 'Biology'],
+        },
+        totalMarks: 720,
+        duration: 200,
+        order: 1,
+      },
+    }),
+    prisma.exam.create({
+      data: {
+        categoryId: examCategories[2].id, // Government
+        name: 'SSC CGL',
+        slug: 'ssc-cgl',
+        description: 'Staff Selection Commission Combined Graduate Level',
+        pattern: {
+          totalMarks: 200,
+          duration: 60,
+          sections: ['Reasoning', 'Quantitative Aptitude', 'English', 'General Awareness'],
+        },
+        totalMarks: 200,
+        duration: 60,
+        order: 1,
+      },
+    }),
+  ])
+
+  console.log(`✅ Created ${exams.length} exams\n`)
+
+  // Create Test Series
+  console.log('📚 Creating Test Series...')
+
+  const testSeries = await Promise.all([
+    prisma.testSeries.create({
+      data: {
+        examId: exams[0].id, // JEE Main
+        title: 'JEE Main 2024 Complete Test Series',
+        slug: 'jee-main-2024-complete',
+        description: 'Comprehensive test series for JEE Main 2024 with 40 full-length mocks and topic-wise tests',
+        thumbnail: '/images/test-series/jee-main.jpg',
+        price: 2999,
+        discountPrice: 1999,
+        isPremium: true,
+        isFree: false,
+        validityDays: 365,
+        totalTests: 40,
+        totalQuestions: 3000,
+        features: [
+          'Full-length mock tests',
+          'Topic-wise practice tests',
+          'Detailed solutions',
+          'Performance analytics',
+          'All India rank',
+          'Video solutions for difficult questions',
+        ],
+        order: 1,
+        publishedAt: new Date(),
+      },
+    }),
+    prisma.testSeries.create({
+      data: {
+        examId: exams[0].id, // JEE Main
+        title: 'JEE Main Physics Mastery',
+        slug: 'jee-main-physics-mastery',
+        description: 'Topic-wise Physics test series covering all JEE Main chapters',
+        thumbnail: '/images/test-series/jee-physics.jpg',
+        price: 999,
+        discountPrice: 699,
+        isPremium: true,
+        isFree: false,
+        validityDays: 180,
+        totalTests: 15,
+        totalQuestions: 750,
+        features: [
+          '15 chapter-wise tests',
+          'Detailed solutions',
+          'Performance tracking',
+          'Concept videos',
+        ],
+        order: 2,
+        publishedAt: new Date(),
+      },
+    }),
+    prisma.testSeries.create({
+      data: {
+        examId: exams[2].id, // NEET UG
+        title: 'NEET 2024 Grand Test Series',
+        slug: 'neet-2024-grand',
+        description: 'Complete NEET preparation with 50+ tests and detailed analysis',
+        thumbnail: '/images/test-series/neet-grand.jpg',
+        price: 3499,
+        discountPrice: 2499,
+        isPremium: true,
+        isFree: false,
+        validityDays: 365,
+        totalTests: 50,
+        totalQuestions: 9000,
+        features: [
+          '50 full-length tests',
+          'Previous year analysis',
+          'NCERT based questions',
+          'Detailed explanations',
+          'All India rank',
+          'Mobile app access',
+        ],
+        order: 1,
+        publishedAt: new Date(),
+      },
+    }),
+    prisma.testSeries.create({
+      data: {
+        examId: exams[3].id, // SSC CGL
+        title: 'SSC CGL Tier 1 Free Test Series',
+        slug: 'ssc-cgl-tier1-free',
+        description: 'Free test series for SSC CGL Tier 1 preparation',
+        thumbnail: '/images/test-series/ssc-cgl-free.jpg',
+        price: 0,
+        discountPrice: null,
+        isPremium: false,
+        isFree: true,
+        validityDays: 180,
+        totalTests: 10,
+        totalQuestions: 1000,
+        features: [
+          '10 full-length tests',
+          'Detailed solutions',
+          'Performance analysis',
+          'Free forever',
+        ],
+        order: 1,
+        publishedAt: new Date(),
+      },
+    }),
+  ])
+
+  console.log(`✅ Created ${testSeries.length} test series\n`)
+
+  // Create PYQ Collections
+  console.log('📖 Creating PYQ Collections...')
+
+  const pyqCollections = await Promise.all([
+    prisma.pYQCollection.create({
+      data: {
+        examId: exams[0].id, // JEE Main
+        title: 'JEE Main PYQ (2015-2024)',
+        slug: 'jee-main-pyq-2015-2024',
+        description: 'Previous 10 years JEE Main question papers with detailed solutions',
+        thumbnail: '/images/pyq/jee-main-pyq.jpg',
+        startYear: 2015,
+        endYear: 2024,
+        price: 999,
+        isPremium: true,
+        isFree: false,
+        totalPapers: 20,
+        totalQuestions: 1500,
+        order: 1,
+      },
+    }),
+    prisma.pYQCollection.create({
+      data: {
+        examId: exams[2].id, // NEET UG
+        title: 'NEET PYQ (2018-2024)',
+        slug: 'neet-pyq-2018-2024',
+        description: 'Last 7 years NEET question papers with solutions',
+        thumbnail: '/images/pyq/neet-pyq.jpg',
+        startYear: 2018,
+        endYear: 2024,
+        price: 799,
+        isPremium: true,
+        isFree: false,
+        totalPapers: 7,
+        totalQuestions: 1260,
+        order: 1,
+      },
+    }),
+    prisma.pYQCollection.create({
+      data: {
+        examId: exams[3].id, // SSC CGL
+        title: 'SSC CGL PYQ (2019-2023)',
+        slug: 'ssc-cgl-pyq-2019-2023',
+        description: 'SSC CGL previous year questions - Free',
+        thumbnail: '/images/pyq/ssc-pyq.jpg',
+        startYear: 2019,
+        endYear: 2023,
+        price: 0,
+        isPremium: false,
+        isFree: true,
+        totalPapers: 10,
+        totalQuestions: 1000,
+        order: 1,
+      },
+    }),
+  ])
+
+  console.log(`✅ Created ${pyqCollections.length} PYQ collections\n`)
+
+  // ============================================================================
   // SUMMARY
   // ============================================================================
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -999,6 +1275,10 @@ async function main() {
   console.log(`   • ${questions.length} Questions`)
   console.log(`   • ${tests.length} Tests`)
   console.log(`   • ${badges.length} Badges`)
+  console.log(`   • ${examCategories.length} Exam Categories`)
+  console.log(`   • ${exams.length} Exams`)
+  console.log(`   • ${testSeries.length} Test Series`)
+  console.log(`   • ${pyqCollections.length} PYQ Collections`)
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
 }
 

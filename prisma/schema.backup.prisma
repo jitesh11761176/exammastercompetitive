@@ -45,8 +45,6 @@ model User {
   interactions       UserInteraction[]
   pushSubscriptions  PushSubscription[]
   notifications      Notification[]
-  enrollments        Enrollment[]
-  courseEnrollments  CourseEnrollment[]
 
   @@index([email])
   @@map("users")
@@ -102,53 +100,6 @@ model VerificationToken {
 // ============================================================================
 // CATEGORY, SUBJECT & TOPIC MODELS
 // ============================================================================
-
-// ============================================================================
-// EXAM HIERARCHY MODELS (New - for Test Series)
-// ============================================================================
-
-model ExamCategory {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  icon        String?
-  order       Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  exams Exam[]
-
-  @@index([slug])
-  @@index([isActive])
-  @@map("exam_categories")
-}
-
-model Exam {
-  id          String   @id @default(cuid())
-  categoryId  String
-  name        String
-  slug        String
-  description String?  @db.Text
-  pattern     Json?    // Exam pattern details
-  totalMarks  Int?
-  duration    Int?     // in minutes
-  order       Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  category    ExamCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  testSeries  TestSeries[]
-  pyqCollections PYQCollection[]
-  courses     Course[]
-
-  @@unique([categoryId, slug])
-  @@index([categoryId])
-  @@index([slug])
-  @@map("exams")
-}
 
 model Category {
   id          String   @id @default(cuid())
@@ -325,13 +276,6 @@ model Test {
   categoryId      String
   testType        TestType @default(FULL_LENGTH)
   
-  // Test Series Relations (NEW)
-  seriesId        String?
-  pyqCollectionId String?
-  isLocked        Boolean  @default(false)
-  order           Int      @default(0)
-  pyqYear         Int?     // Year for PYQ papers
-  
   // Timing
   duration        Int      // Total duration in minutes
   sectionDurations Json?   // Per-section timing if applicable
@@ -361,6 +305,7 @@ model Test {
   unlockPoints    Int?     // Points needed to unlock
   
   // Metadata
+  order           Int      @default(0)
   isActive        Boolean  @default(true)
   isPremium       Boolean  @default(false)
   difficulty      Difficulty @default(MEDIUM)
@@ -370,15 +315,11 @@ model Test {
   updatedAt       DateTime @updatedAt
   publishedAt     DateTime?
 
-  category       Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  series         TestSeries?   @relation("SeriesTests", fields: [seriesId], references: [id], onDelete: Cascade)
-  pyqCollection  PYQCollection? @relation("PYQTests", fields: [pyqCollectionId], references: [id], onDelete: Cascade)
-  attempts       TestAttempt[]
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attempts TestAttempt[]
   challengeTests DailyChallenge[]
 
   @@index([categoryId])
-  @@index([seriesId])
-  @@index([pyqCollectionId])
   @@index([testType])
   @@index([isFree])
   @@index([isPremium])
@@ -454,376 +395,6 @@ enum AttemptStatus {
   COMPLETED
   ABANDONED
   UNDER_REVIEW
-}
-
-// ============================================================================
-// TEST SERIES & ENROLLMENT MODELS
-// ============================================================================
-
-model TestSeries {
-  id              String   @id @default(cuid())
-  examId          String
-  title           String
-  slug            String
-  description     String?  @db.Text
-  thumbnail       String?
-  
-  // Pricing
-  price           Float    @default(0)
-  discountPrice   Float?
-  isPremium       Boolean  @default(false)
-  isFree          Boolean  @default(false)
-  
-  // Validity
-  validityDays    Int      @default(365) // Days from enrollment
-  
-  // Content Counts
-  totalTests      Int      @default(0)
-  totalQuestions  Int      @default(0)
-  
-  // Features
-  features        String[] // ["Live Classes", "PDF Notes", etc.]
-  
-  // Metadata
-  enrolledCount   Int      @default(0)
-  order           Int      @default(0)
-  isActive        Boolean  @default(true)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  publishedAt     DateTime?
-  
-  exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-  tests         Test[]       @relation("SeriesTests")
-  enrollments   Enrollment[]
-  
-  @@unique([examId, slug])
-  @@index([examId])
-  @@index([slug])
-  @@index([isPremium])
-  @@index([isFree])
-  @@map("test_series")
-}
-
-model PYQCollection {
-  id              String   @id @default(cuid())
-  examId          String
-  title           String
-  slug            String
-  description     String?  @db.Text
-  thumbnail       String?
-  
-  // Year Range
-  startYear       Int
-  endYear         Int
-  
-  // Pricing
-  price           Float    @default(0)
-  isPremium       Boolean  @default(false)
-  isFree          Boolean  @default(false)
-  
-  // Content
-  totalPapers     Int      @default(0)
-  totalQuestions  Int      @default(0)
-  
-  // Metadata
-  order           Int      @default(0)
-  isActive        Boolean  @default(true)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  exam      Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
-  tests     Test[] @relation("PYQTests")
-  
-  @@unique([examId, slug])
-  @@index([examId])
-  @@index([slug])
-  @@map("pyq_collections")
-}
-
-model Enrollment {
-  id              String           @id @default(cuid())
-  userId          String
-  seriesId        String
-  
-  // Status
-  status          EnrollmentStatus @default(ACTIVE)
-  
-  // Dates
-  enrolledAt      DateTime         @default(now())
-  expiresAt       DateTime
-  lastAccessedAt  DateTime?
-  
-  // Progress
-  completedTests  Int              @default(0)
-  totalScore      Float            @default(0)
-  averageScore    Float            @default(0)
-  
-  // Payment Info (if premium)
-  paymentId       String?
-  amountPaid      Float            @default(0)
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  series  TestSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, seriesId])
-  @@index([userId])
-  @@index([seriesId])
-  @@index([status])
-  @@index([expiresAt])
-  @@map("enrollments")
-}
-
-enum EnrollmentStatus {
-  ACTIVE
-  EXPIRED
-  CANCELLED
-  SUSPENDED
-}
-
-// ============================================================================
-// COURSE & VIDEO LEARNING MODELS
-// ============================================================================
-
-model Course {
-  id              String   @id @default(cuid())
-  examId          String?
-  title           String
-  slug            String   @unique
-  description     String?  @db.Text
-  thumbnail       String?
-  previewVideo    String?  // Cloudflare video ID for preview
-  
-  // Pricing
-  price           Float    @default(0)
-  discountPrice   Float?
-  isFree          Boolean  @default(false)
-  
-  // Content
-  totalLectures   Int      @default(0)
-  totalDuration   Int      @default(0) // in minutes
-  
-  // Metadata
-  level           CourseLevel @default(BEGINNER)
-  language        String   @default("English")
-  tags            String[]
-  rating          Float    @default(0)
-  enrolledCount   Int      @default(0)
-  
-  // Instructor
-  instructorId    String?
-  instructorName  String?
-  instructorBio   String?  @db.Text
-  
-  // Status
-  isActive        Boolean  @default(true)
-  isPublished     Boolean  @default(false)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  publishedAt     DateTime?
-  
-  exam            Exam?    @relation(fields: [examId], references: [id], onDelete: SetNull)
-  lectures        Lecture[]
-  enrollments     CourseEnrollment[]
-  reviews         CourseReview[]
-  
-  @@index([examId])
-  @@index([slug])
-  @@index([isActive])
-  @@index([isPublished])
-  @@map("courses")
-}
-
-enum CourseLevel {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
-  EXPERT
-}
-
-model Lecture {
-  id              String   @id @default(cuid())
-  courseId        String
-  title           String
-  slug            String
-  description     String?  @db.Text
-  
-  // Video
-  videoId         String   // Cloudflare Stream video ID
-  duration        Int      // in seconds
-  thumbnail       String?
-  
-  // Content
-  content         String?  @db.Text // Lecture notes in markdown
-  resources       Json?    // Downloadable resources
-  
-  // Order & Access
-  order           Int      @default(0)
-  isFree          Boolean  @default(false) // Preview lectures
-  isActive        Boolean  @default(true)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  progress        VideoProgress[]
-  
-  @@unique([courseId, slug])
-  @@index([courseId])
-  @@index([order])
-  @@map("lectures")
-}
-
-model CourseEnrollment {
-  id              String           @id @default(cuid())
-  userId          String
-  courseId        String
-  
-  // Status
-  status          EnrollmentStatus @default(ACTIVE)
-  
-  // Dates
-  enrolledAt      DateTime         @default(now())
-  expiresAt       DateTime?
-  lastAccessedAt  DateTime?
-  completedAt     DateTime?
-  
-  // Progress
-  progress        Float            @default(0) // percentage
-  completedLectures Int            @default(0)
-  totalWatchTime  Int              @default(0) // in minutes
-  
-  // Certificate
-  certificateId   String?
-  certificateUrl  String?
-  
-  // Payment
-  paymentId       String?
-  amountPaid      Float            @default(0)
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, courseId])
-  @@index([userId])
-  @@index([courseId])
-  @@index([status])
-  @@map("course_enrollments")
-}
-
-model VideoProgress {
-  id              String   @id @default(cuid())
-  userId          String
-  lectureId       String
-  
-  // Progress tracking
-  watchedSeconds  Int      @default(0)
-  totalSeconds    Int
-  progress        Float    @default(0) // percentage
-  isCompleted     Boolean  @default(false)
-  
-  // Resume position
-  lastPosition    Int      @default(0)
-  
-  // Metadata
-  lastWatchedAt   DateTime @default(now())
-  completedAt     DateTime?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, lectureId])
-  @@index([userId])
-  @@index([lectureId])
-  @@map("video_progress")
-}
-
-model CourseReview {
-  id              String   @id @default(cuid())
-  userId          String
-  courseId        String
-  
-  rating          Int      // 1-5 stars
-  comment         String?  @db.Text
-  
-  isVerified      Boolean  @default(false) // Verified purchase
-  isPublished     Boolean  @default(true)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, courseId])
-  @@index([courseId])
-  @@index([rating])
-  @@map("course_reviews")
-}
-
-// ============================================================================
-// PAYMENT MODELS
-// ============================================================================
-
-model Purchase {
-  id              String        @id @default(cuid())
-  userId          String
-  
-  // Item details
-  itemType        PurchaseType
-  itemId          String        // TestSeries ID or Course ID
-  itemTitle       String
-  
-  // Payment details
-  amount          Float
-  currency        String        @default("INR")
-  
-  // Razorpay
-  razorpayOrderId    String?    @unique
-  razorpayPaymentId  String?    @unique
-  razorpaySignature  String?
-  
-  // Status
-  status          PaymentStatus @default(PENDING)
-  
-  // Metadata
-  metadata        Json?
-  failureReason   String?
-  receiptUrl      String?
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  paidAt          DateTime?
-  
-  @@index([userId])
-  @@index([status])
-  @@index([itemType, itemId])
-  @@index([createdAt])
-  @@map("purchases")
-}
-
-enum PurchaseType {
-  TEST_SERIES
-  COURSE
-  PYQ_COLLECTION
-  SUBSCRIPTION
-}
-
-enum PaymentStatus {
-  PENDING
-  PROCESSING
-  SUCCESS
-  FAILED
-  REFUNDED
 }
 
 // ============================================================================
@@ -1633,6 +1204,14 @@ enum PaymentMethod {
   PAYPAL
   CREDIT_CARD
   UPI
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
 }
 
 model Coupon {
