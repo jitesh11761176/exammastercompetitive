@@ -14,28 +14,10 @@ export default async function TestsPage() {
     redirect('/login')
   }
 
-  // Get user's interested categories
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email! },
-    include: {
-      interestedCategories: {
-        select: {
-          categoryId: true
-        }
-      }
-    }
-  })
-
-  // If user has selected categories, filter tests by those categories
-  // Otherwise, show all active tests
-  const categoryFilter = user?.interestedCategories && user.interestedCategories.length > 0
-    ? { categoryId: { in: user.interestedCategories.map(uc => uc.categoryId) } }
-    : {}
-
+  // Show ALL active tests to all users
   const tests = await prisma.test.findMany({
     where: { 
-      isActive: true,
-      ...categoryFilter
+      isActive: true
     },
     orderBy: { createdAt: 'desc' },
     include: {

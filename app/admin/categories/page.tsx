@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { FolderOpen, BookOpen, FileQuestion, TestTube } from 'lucide-react'
+import { CategoryDeleteButton } from './category-delete-button'
 
 export default async function AdminCategoriesPage() {
   const session = await getServerSession(authOptions)
@@ -78,12 +79,21 @@ export default async function AdminCategoriesPage() {
                       {category.description || 'No description'}
                     </CardDescription>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    category.isActive 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {category.isActive ? 'Active' : 'Inactive'}
+                  <div className="flex items-center gap-3">
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      category.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {category.isActive ? 'Active' : 'Inactive'}
+                    </div>
+                    <CategoryDeleteButton
+                      categoryId={category.id}
+                      categoryName={category.name}
+                      hasContent={totalQuestions > 0 || category._count.tests > 0}
+                      questionsCount={totalQuestions}
+                      testsCount={category._count.tests}
+                    />
                   </div>
                 </div>
               </CardHeader>
