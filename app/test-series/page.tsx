@@ -4,6 +4,8 @@ import TestSeriesCard from '@/components/test-series/TestSeriesCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Test Series | ExamMaster Pro',
   description: 'Comprehensive test series for all competitive exams',

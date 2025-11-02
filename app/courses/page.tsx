@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, PlayCircle, BookOpen, Users } from "lucide-react"
 import { PaymentButton } from "@/components/payment/PaymentButton"
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: "Video Courses | ExamMaster Competitive",
   description: "Browse our comprehensive video courses for competitive exams"
