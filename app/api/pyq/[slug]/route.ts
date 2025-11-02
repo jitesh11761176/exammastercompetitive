@@ -35,7 +35,6 @@ export async function GET(
           select: {
             id: true,
             title: true,
-            slug: true,
             pyqYear: true,
             duration: true,
             totalQuestions: true,
