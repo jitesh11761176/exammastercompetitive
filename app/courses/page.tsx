@@ -1,4 +1,3 @@
-import { Suspense } from "react"
 import { Metadata } from "next"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
@@ -155,7 +154,7 @@ export default async function CoursesPage() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => (
+          {courses.map((course: any) => (
             <CourseCard key={course.id} course={course} />
           ))}
         </div>
