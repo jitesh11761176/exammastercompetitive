@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { PaymentStatus } from '@prisma/client'
 import { verifyRazorpaySignature } from '@/lib/razorpay'
 
 // POST /api/payment/verify - Verify Razorpay payment
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       await prisma.purchase.update({
         where: { id: purchaseId },
         data: {
-          status: 'FAILED',
+          status: PaymentStatus.FAILED,
           failureReason: 'Invalid signature',
         },
       })
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
     await prisma.purchase.update({
       where: { id: purchaseId },
       data: {
-        status: 'SUCCESS',
+        status: PaymentStatus.SUCCEEDED,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
         paidAt: new Date(),

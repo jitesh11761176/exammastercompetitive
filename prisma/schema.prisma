@@ -49,6 +49,7 @@ model User {
   courseEnrollments  CourseEnrollment[]
   videoProgress      VideoProgress[]
   courseReviews      CourseReview[]
+  purchases          Purchase[]
 
   @@index([email])
   @@map("users")
@@ -807,6 +808,8 @@ model Purchase {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   paidAt          DateTime?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
   @@index([status])
