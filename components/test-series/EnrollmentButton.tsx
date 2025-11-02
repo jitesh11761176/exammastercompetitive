@@ -17,7 +17,7 @@ interface EnrollmentButtonProps {
 }
 
 export default function EnrollmentButton({
-  seriesId,
+  seriesId: _seriesId,
   examId,
   slug,
   isEnrolled,
