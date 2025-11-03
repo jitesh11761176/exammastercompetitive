@@ -90,7 +90,7 @@ export async function POST(req: Request) {
 }
 
 async function handleCategoryCommand(command: string, action: 'create' | 'delete' | 'nested', confirmed: boolean) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   // Extract category information using AI
   const extractionPrompt = `Extract category information from this command: "${command}"
@@ -187,7 +187,7 @@ Example responses:
 }
 
 async function handleExamCreationCommand(command: string) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const prompt = `You are an elite exam architect with 15+ years of experience creating competitive exams for Indian government recruitment (SSC, UPSC, Railway, Banking, Police, Defence, Teaching jobs). You understand exam patterns, difficulty progression, and authentic question styles.
 
@@ -387,7 +387,7 @@ async function handleQuestionUpload(file: File, confirmed: boolean = false) {
 
   console.log('Extracted file content length:', fileContent.length);
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const prompt = `You are a master question extractor and competitive exam content specialist. You have processed 10,000+ exam papers and can extract, structure, and enhance questions from any format.
 
