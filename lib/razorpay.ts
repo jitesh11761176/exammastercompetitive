@@ -1,11 +1,13 @@
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
 
-// Initialize Razorpay instance
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-})
+// Initialize Razorpay instance only if keys are available
+export const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    })
+  : null
 
 // Razorpay types
 export interface RazorpayOrderOptions {
@@ -41,6 +43,10 @@ export interface RazorpayPaymentVerification {
 export async function createRazorpayOrder(
   options: RazorpayOrderOptions
 ): Promise<RazorpayOrder> {
+  if (!razorpay) {
+    throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.')
+  }
+
   try {
     const order = await razorpay.orders.create({
       amount: options.amount,
@@ -84,6 +90,10 @@ export function verifyRazorpaySignature(
  * Fetch payment details from Razorpay
  */
 export async function fetchPaymentDetails(paymentId: string) {
+  if (!razorpay) {
+    throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.')
+  }
+
   try {
     const payment = await razorpay.payments.fetch(paymentId)
     return payment
@@ -100,6 +110,10 @@ export async function initiateRefund(
   paymentId: string,
   amount?: number
 ) {
+  if (!razorpay) {
+    throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.')
+  }
+
   try {
     const refund = await razorpay.payments.refund(paymentId, {
       amount: amount, // If not provided, full refund
