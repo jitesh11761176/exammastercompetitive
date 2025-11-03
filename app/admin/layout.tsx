@@ -8,7 +8,8 @@ import {
   BookOpen, 
   Users,
   Settings,
-  Sparkles
+  Sparkles,
+  Key
 } from 'lucide-react'
 
 export default async function AdminLayout({
@@ -26,6 +27,7 @@ export default async function AdminLayout({
     { name: 'Tests', href: '/admin/tests', icon: FileText },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'API Keys', href: '/admin/api-keys', icon: Key },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
   ]
 

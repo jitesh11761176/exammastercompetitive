@@ -1,13 +1,42 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+// Function to get the current API key (runtime or environment)
+function getGeminiAPIKey(): string {
+  try {
+    const configPath = join(process.cwd(), '.env.runtime')
+    if (existsSync(configPath)) {
+      const content = readFileSync(configPath, 'utf-8')
+      const lines = content.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('GEMINI_API_KEY=')) {
+          return line.split('=')[1].trim()
+        }
+      }
+    }
+  } catch (error) {
+    // Fall back to environment variable
+  }
+  return process.env.GEMINI_API_KEY || ''
+}
+
+// Create a function to get the AI instance with the latest key
+function getGenAI() {
+  const apiKey = getGeminiAPIKey()
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured. Please set it in the admin panel.')
+  }
+  return new GoogleGenerativeAI(apiKey)
+}
 
 export async function generateQuestions(
   topic: string,
   count: number = 10,
   difficulty: 'EASY' | 'MEDIUM' | 'HARD' = 'MEDIUM'
 ) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+  const genAI = getGenAI()
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const prompt = `Generate ${count} multiple-choice questions about ${topic} with ${difficulty.toLowerCase()} difficulty.
 
@@ -43,7 +72,8 @@ Return ONLY a valid JSON array of ${count} questions, nothing else.`
 }
 
 export async function clarifyDoubt(question: string, context?: string) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+  const genAI = getGenAI()
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const prompt = `You are an expert tutor helping students prepare for competitive exams.
 
@@ -64,16 +94,19 @@ Keep your response focused and easy to understand.`
   }
 }
 
-export async function getPerformanceInsights(
-  userStats: {
-    totalTests: number
-    averageScore: number
-    strongSubjects: string[]
-    weakSubjects: string[]
-    recentTrend: 'improving' | 'declining' | 'stable'
+export async function getPerformanceInsights(userId: string) {
+  const genAI = getGenAI()
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  // TODO: Fetch actual user stats from database
+  // This is a placeholder implementation
+  const userStats = {
+    totalTests: 0,
+    averageScore: 0,
+    strongSubjects: ['N/A'],
+    weakSubjects: ['N/A'],
+    recentTrend: 'No data available'
   }
-) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
   const prompt = `Analyze this student's performance and provide actionable insights:
 
