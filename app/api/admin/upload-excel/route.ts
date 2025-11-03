@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import Papa from 'papaparse'
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,74 +39,53 @@ export async function POST(request: NextRequest) {
 
     // Read file content
     const text = await file.text()
-    const lines = text.split('\n').filter(line => line.trim())
     
-    if (lines.length < 2) {
+    // Parse CSV using Papa Parse
+    const parseResult = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header: string) => header.trim()
+    })
+
+    if (parseResult.errors.length > 0) {
+      console.error('❌ CSV parsing errors:', parseResult.errors)
+      return NextResponse.json({
+        success: false,
+        message: `CSV parsing error: ${parseResult.errors[0].message}. Please ensure your file is properly formatted.`
+      }, { status: 400 })
+    }
+
+    const rows = parseResult.data as any[]
+    
+    if (rows.length === 0) {
       return NextResponse.json({ 
         success: false, 
         message: 'File is empty or has no data rows. Please use the template.' 
       })
     }
 
-    // Skip header row
-    const dataLines = lines.slice(1)
-    
     const questions: any[] = []
     let categoryName = ''
     const subjectsSet = new Set<string>()
 
-    console.log(`Processing ${dataLines.length} rows...`)
+    console.log(`Processing ${rows.length} rows...`)
 
-    for (let i = 0; i < dataLines.length; i++) {
-      const line = dataLines[i]
-      
-      // Parse CSV line (handle quoted fields with commas inside)
-      const fields: string[] = []
-      let current = ''
-      let inQuotes = false
-      
-      for (let j = 0; j < line.length; j++) {
-        const char = line[j]
-        
-        if (char === '"') {
-          if (inQuotes && line[j + 1] === '"') {
-            // Escaped quote
-            current += '"'
-            j++
-          } else {
-            // Toggle quote state
-            inQuotes = !inQuotes
-          }
-        } else if (char === ',' && !inQuotes) {
-          // Field separator
-          fields.push(current.trim())
-          current = ''
-        } else {
-          current += char
-        }
-      }
-      fields.push(current.trim()) // Last field
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
 
-      if (fields.length < 11) {
-        console.log(`⚠️ Row ${i + 2} skipped: not enough columns (${fields.length})`)
-        continue // Skip invalid rows
-      }
-
-      const [
-        , // questionNum - not used
-        questionText,
-        optionA,
-        optionB,
-        optionC,
-        optionD,
-        correctAnswer,
-        explanation,
-        subject,
-        topic,
-        category,
-        marks,
-        difficulty
-      ] = fields
+      // Extract fields (try different possible header variations)
+      const questionText = row['Question Text'] || row['question_text'] || row['QuestionText'] || ''
+      const optionA = row['Option A'] || row['option_a'] || row['OptionA'] || ''
+      const optionB = row['Option B'] || row['option_b'] || row['OptionB'] || ''
+      const optionC = row['Option C'] || row['option_c'] || row['OptionC'] || ''
+      const optionD = row['Option D'] || row['option_d'] || row['OptionD'] || ''
+      const correctAnswer = row['Correct Answer (A/B/C/D)'] || row['Correct Answer'] || row['correct_answer'] || row['CorrectAnswer'] || ''
+      const explanation = row['Explanation'] || row['explanation'] || ''
+      const subject = row['Subject'] || row['subject'] || 'General Knowledge'
+      const topic = row['Topic'] || row['topic'] || ''
+      const category = row['Category'] || row['category'] || ''
+      const marks = row['Marks'] || row['marks'] || '1'
+      const difficulty = row['Difficulty (EASY/MEDIUM/HARD)'] || row['Difficulty'] || row['difficulty'] || 'MEDIUM'
 
       // Validate required fields
       if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
@@ -114,32 +94,32 @@ export async function POST(request: NextRequest) {
       }
 
       // Validate correct answer
-      const answer = correctAnswer.trim().toUpperCase()
+      const answer = correctAnswer.toString().trim().toUpperCase()
       if (!['A', 'B', 'C', 'D'].includes(answer)) {
         console.log(`⚠️ Row ${i + 2} skipped: invalid answer "${correctAnswer}" (must be A, B, C, or D)`)
         continue
       }
 
-      categoryName = category?.trim() || categoryName || 'General'
-      const subjectName = subject?.trim() || 'General Knowledge'
+      categoryName = category?.toString().trim() || categoryName || 'General'
+      const subjectName = subject?.toString().trim() || 'General Knowledge'
       if (subjectName) subjectsSet.add(subjectName)
 
-      const difficultyValue = (difficulty?.trim().toUpperCase() || 'MEDIUM')
+      const difficultyValue = (difficulty?.toString().trim().toUpperCase() || 'MEDIUM')
       const validDifficulty = ['EASY', 'MEDIUM', 'HARD'].includes(difficultyValue) 
         ? difficultyValue 
         : 'MEDIUM'
 
       questions.push({
-        questionText: questionText.trim(),
-        optionA: optionA.trim(),
-        optionB: optionB.trim(),
-        optionC: optionC.trim(),
-        optionD: optionD.trim(),
+        questionText: questionText.toString().trim(),
+        optionA: optionA.toString().trim(),
+        optionB: optionB.toString().trim(),
+        optionC: optionC.toString().trim(),
+        optionD: optionD.toString().trim(),
         correctAnswer: answer,
-        explanation: explanation?.trim() || `The correct answer is option ${answer}.`,
+        explanation: explanation?.toString().trim() || `The correct answer is option ${answer}.`,
         subject: subjectName,
-        topic: topic?.trim() || '',
-        marks: parseInt(marks) || 1,
+        topic: topic?.toString().trim() || '',
+        marks: parseInt(marks.toString()) || 1,
         difficulty: validDifficulty
       })
     }
