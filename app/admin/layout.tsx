@@ -9,7 +9,8 @@ import {
   Users,
   Settings,
   Sparkles,
-  Key
+  Key,
+  PlusCircle
 } from 'lucide-react'
 
 export default async function AdminLayout({
@@ -21,7 +22,8 @@ export default async function AdminLayout({
 
   const navItems = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { name: '✨ Create Test (Easy)', href: '/admin/tests/create-easy', icon: Sparkles },
+    { name: '📝 Create Test (Simple)', href: '/admin/tests/create', icon: PlusCircle },
+    { name: '✨ Create Test (Wizard)', href: '/admin/tests/create-easy', icon: Sparkles },
     { name: 'AI Generator', href: '/admin/ai-assistant', icon: Wand2 },
     { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
     { name: 'Tests', href: '/admin/tests', icon: FileText },
