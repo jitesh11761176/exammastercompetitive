@@ -35,7 +35,7 @@ export async function generateQuestions(
   difficulty: 'EASY' | 'MEDIUM' | 'HARD' = 'MEDIUM'
 ) {
   const genAI = await getGenAI()
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
   const prompt = `Generate ${count} multiple-choice questions about ${topic} with ${difficulty.toLowerCase()} difficulty.
 
@@ -72,7 +72,7 @@ Return ONLY a valid JSON array of ${count} questions, nothing else.`
 
 export async function clarifyDoubt(question: string, context?: string) {
   const genAI = await getGenAI()
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
   const prompt = `You are an expert tutor helping students prepare for competitive exams.
 
@@ -95,7 +95,7 @@ Keep your response focused and easy to understand.`
 
 export async function getPerformanceInsights(_userId: string) {
   const genAI = await getGenAI()
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
   // TODO: Fetch actual user stats from database
   // This is a placeholder implementation
