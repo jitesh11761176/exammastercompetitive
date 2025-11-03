@@ -1,45 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { writeFileSync, readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { prisma } from '@/lib/prisma'
 
-const CONFIG_FILE = join(process.cwd(), '.env.runtime')
-
-function getEnvConfig() {
+async function getGeminiKey() {
   try {
-    if (existsSync(CONFIG_FILE)) {
-      const content = readFileSync(CONFIG_FILE, 'utf-8')
-      const config: Record<string, string> = {}
-      content.split('\n').forEach(line => {
-        const [key, ...valueParts] = line.split('=')
-        if (key && valueParts.length > 0) {
-          config[key.trim()] = valueParts.join('=').trim()
-        }
-      })
-      return config
-    }
+    const settings = await prisma.platformSettings.findUnique({
+      where: { category: 'ai' }
+    })
+    return settings?.geminiApiKey || process.env.GEMINI_API_KEY || ''
   } catch (error) {
-    console.error('Error reading config:', error)
+    console.error('Error reading Gemini key:', error)
+    return process.env.GEMINI_API_KEY || ''
   }
-  return {}
 }
 
-function saveEnvConfig(config: Record<string, string>) {
+async function saveGeminiKey(apiKey: string) {
   try {
-    const content = Object.entries(config)
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n')
-    writeFileSync(CONFIG_FILE, content, 'utf-8')
-    
-    // Update process.env immediately
-    Object.entries(config).forEach(([key, value]) => {
-      process.env[key] = value
+    await prisma.platformSettings.upsert({
+      where: { category: 'ai' },
+      update: { 
+        geminiApiKey: apiKey,
+        settings: { lastUpdated: new Date().toISOString() }
+      },
+      create: { 
+        category: 'ai',
+        geminiApiKey: apiKey,
+        settings: { lastUpdated: new Date().toISOString() }
+      }
     })
-    
     return true
   } catch (error) {
-    console.error('Error saving config:', error)
+    console.error('Error saving Gemini key:', error)
     return false
   }
 }
@@ -52,8 +44,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    const config = getEnvConfig()
-    const geminiKey = config.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''
+    const geminiKey = await getGeminiKey()
 
     return NextResponse.json({
       success: true,
@@ -85,12 +76,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const config = getEnvConfig()
-    config.GEMINI_API_KEY = geminiKey
-
-    const saved = saveEnvConfig(config)
+    const saved = await saveGeminiKey(geminiKey)
 
     if (saved) {
+      // Update process.env immediately for this instance
+      process.env.GEMINI_API_KEY = geminiKey
+      
       return NextResponse.json({
         success: true,
         message: 'API key updated successfully'

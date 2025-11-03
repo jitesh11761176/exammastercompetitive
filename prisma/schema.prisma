@@ -2279,3 +2279,28 @@ enum DeliveryStatus {
   FAILED
   RETRYING
 }
+
+// ============================================================================
+// PLATFORM SETTINGS & CONFIGURATION
+// ============================================================================
+
+model PlatformSettings {
+  id              String   @id @default(cuid())
+  
+  // API Keys (encrypted in production)
+  geminiApiKey    String?  @db.Text
+  stripeApiKey    String?  @db.Text
+  razorpayApiKey  String?  @db.Text
+  
+  // Settings by category
+  category        String   @unique // "ai", "payment", "email", etc.
+  settings        Json     // Category-specific settings
+  
+  // Metadata
+  updatedBy       String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  
+  @@index([category])
+  @@map("platform_settings")
+}

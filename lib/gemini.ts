@@ -1,29 +1,28 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { prisma } from './prisma'
 
-// Function to get the current API key (runtime or environment)
-function getGeminiAPIKey(): string {
+// Function to get the current API key from database (runtime) or environment
+async function getGeminiAPIKey(): Promise<string> {
   try {
-    const configPath = join(process.cwd(), '.env.runtime')
-    if (existsSync(configPath)) {
-      const content = readFileSync(configPath, 'utf-8')
-      const lines = content.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('GEMINI_API_KEY=')) {
-          return line.split('=')[1].trim()
-        }
-      }
+    // Try to get from database first (allows runtime updates)
+    const settings = await prisma.platformSettings.findUnique({
+      where: { category: 'ai' }
+    })
+    
+    if (settings?.geminiApiKey) {
+      return settings.geminiApiKey
     }
   } catch (error) {
-    // Fall back to environment variable
+    console.error('Error reading Gemini API key from database:', error)
   }
+  
+  // Fallback to environment variable
   return process.env.GEMINI_API_KEY || ''
 }
 
 // Create a function to get the AI instance with the latest key
-function getGenAI() {
-  const apiKey = getGeminiAPIKey()
+async function getGenAI() {
+  const apiKey = await getGeminiAPIKey()
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured. Please set it in the admin panel.')
   }
@@ -35,7 +34,7 @@ export async function generateQuestions(
   count: number = 10,
   difficulty: 'EASY' | 'MEDIUM' | 'HARD' = 'MEDIUM'
 ) {
-  const genAI = getGenAI()
+  const genAI = await getGenAI()
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const prompt = `Generate ${count} multiple-choice questions about ${topic} with ${difficulty.toLowerCase()} difficulty.
@@ -72,7 +71,7 @@ Return ONLY a valid JSON array of ${count} questions, nothing else.`
 }
 
 export async function clarifyDoubt(question: string, context?: string) {
-  const genAI = getGenAI()
+  const genAI = await getGenAI()
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const prompt = `You are an expert tutor helping students prepare for competitive exams.
@@ -95,7 +94,7 @@ Keep your response focused and easy to understand.`
 }
 
 export async function getPerformanceInsights(_userId: string) {
-  const genAI = getGenAI()
+  const genAI = await getGenAI()
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   // TODO: Fetch actual user stats from database
