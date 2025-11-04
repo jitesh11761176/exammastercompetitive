@@ -48,6 +48,7 @@ export default function AIAssistantPage() {
 
   useEffect(() => {
     fetchExamsAndCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchExamsAndCategories = async () => {
@@ -226,7 +227,7 @@ export default function AIAssistantPage() {
                               </SelectContent>
                             </Select>
                             <p className="text-xs text-gray-500 mt-1">
-                              If category doesn't exist, contact admin to create it
+                              If category doesn&apos;t exist, contact admin to create it
                             </p>
                           </div>
                           <div>
