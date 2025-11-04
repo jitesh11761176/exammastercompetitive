@@ -115,6 +115,7 @@ export default function TestResultPage() {
   const accuracy = Number(result.accuracy ?? (attempted > 0 ? (Number(result.correctAnswers ?? 0) / attempted) * 100 : 0))
   const passingMarks = Number(result.test?.passingMarks ?? Math.ceil((totalMarks || 0) * 0.33))
   const isPassed = score >= passingMarks
+  const skippedAnswers = Number(result.skippedAnswers ?? result.unattempted ?? 0)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 dark:from-gray-950 dark:to-gray-900 p-4 md:p-8">
@@ -166,7 +167,7 @@ export default function TestResultPage() {
               </Badge>
               <Badge className="px-4 py-2 text-base bg-gray-100 text-gray-800">
                 <MinusCircle className="w-4 h-4 mr-2" />
-                {result.skippedAnswers} Skipped
+                {skippedAnswers} Skipped
               </Badge>
               <Badge className="px-4 py-2 text-base bg-purple-100 text-purple-800">
                 <Award className="w-4 h-4 mr-2" />
@@ -260,7 +261,9 @@ export default function TestResultPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {Object.entries(result.answers || {}).map(([questionId, answer]: [string, any], index) => (
+              {Object.entries(result.answers || {}).map(([questionId, answer]: [string, any], index) => {
+                const a = (answer && typeof answer === 'object') ? answer : { answer, timeSpent: 0, markedForReview: false }
+                return (
                 <div
                   key={questionId}
                   className="flex items-center justify-between p-3 rounded-lg border"
@@ -272,22 +275,22 @@ export default function TestResultPage() {
                     <div>
                       <div className="font-medium">Question {index + 1}</div>
                       <div className="text-xs text-gray-500">
-                        {answer.markedForReview && (
+                        {a.markedForReview && (
                           <Badge variant="outline" className="mr-2">Marked</Badge>
                         )}
-                        Time: {answer.timeSpent || 0}s
+                        Time: {a.timeSpent || 0}s
                       </div>
                     </div>
                   </div>
                   <div>
-                    {answer.answer ? (
+                    {a.answer ? (
                       <Badge className="bg-green-100 text-green-800">Answered</Badge>
                     ) : (
                       <Badge className="bg-gray-100 text-gray-800">Skipped</Badge>
                     )}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </CardContent>
         </Card>
