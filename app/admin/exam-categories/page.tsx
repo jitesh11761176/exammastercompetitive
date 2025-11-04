@@ -67,7 +67,6 @@ export default async function AdminExamCategoriesPage() {
           // Calculate total resources
           const totalTestSeries = examCategory.exams.reduce((sum, exam) => sum + exam._count.testSeries, 0)
           const totalCourses = examCategory.exams.reduce((sum, exam) => sum + exam._count.courses, 0)
-          const totalPyq = examCategory.exams.reduce((sum, exam) => sum + exam._count.pyqCollections, 0)
           const totalTests = examCategory.exams.reduce((sum, exam) => {
             return sum + exam.testSeries.reduce((tsSum, ts) => tsSum + ts.tests.length, 0)
           }, 0)
