@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, thumbnail, icon, tags, price, order, isActive, isFree } = body
+    const { title, description, thumbnail, icon, tags, order, isActive, isFree } = body
 
     if (!title) {
       return NextResponse.json({ 
@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
         thumbnail: thumbnail || null,
         icon: icon || null,
         tags: tags || [],
-        price: price || 0,
         order: order || 0,
         isActive: isActive !== undefined ? isActive : true,
         isFree: isFree !== undefined ? isFree : false
