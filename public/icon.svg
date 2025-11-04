@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="128" fill="#4F46E5"/>
+  <path d="M256 96L368 416H144L256 96Z" fill="white" opacity="0.9"/>
+  <circle cx="256" cy="280" r="80" fill="#4F46E5"/>
+  <path d="M256 220V280M256 300V320" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <text x="256" y="460" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">EM</text>
+</svg>

@@ -1,0 +1,1853 @@
+// ============================================================================
+// ExamMaster Pro - Complete Prisma Schema
+// PostgreSQL Database for Competitive Exam Preparation Platform
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// AUTHENTICATION MODELS (NextAuth.js)
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(STUDENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts           Account[]
+  sessions           Session[]
+  testAttempts       TestAttempt[]
+  userProgress       UserProgress[]
+  analytics          Analytics?
+  gamification       Gamification?
+  userBadges         UserBadge[]
+  bookmarks          Bookmark[]
+  reports            QuestionReport[]
+  studyPlans         StudyPlan[]
+  interestedCategories UserCategory[]
+  subscriptions      Subscription[]
+  studySessions      StudySession[]
+  chatSessions       ChatSession[]
+  recommendations    UserRecommendation[]
+  interactions       UserInteraction[]
+  pushSubscriptions  PushSubscription[]
+  notifications      Notification[]
+
+  @@index([email])
+  @@map("users")
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================================================
+// CATEGORY, SUBJECT & TOPIC MODELS
+// ============================================================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjects Subject[]
+  tests    Test[]
+  interestedUsers UserCategory[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("categories")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String
+  description String?
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  topics   Topic[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@map("subjects")
+}
+
+model Topic {
+  id          String     @id @default(cuid())
+  subjectId   String
+  name        String
+  slug        String
+  description String?
+  weightage   Float      @default(0)
+  difficulty  Difficulty @default(MEDIUM)
+  order       Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@unique([subjectId, slug])
+  @@index([subjectId])
+  @@map("topics")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// ============================================================================
+// QUESTION MODEL (Enhanced with versioning and multiple types)
+// ============================================================================
+
+model Question {
+  id                  String       @id @default(cuid())
+  topicId             String
+  questionType        QuestionType @default(MCQ)
+  questionText        String       @db.Text
+  questionImage       String?
+  mathContent         String?      @db.Text // KaTeX formulas
+  
+  // Options (for MCQ/MSQ)
+  optionA             String?
+  optionB             String?
+  optionC             String?
+  optionD             String?
+  optionE             String?      // For MSQ
+  optionF             String?      // For MSQ
+  
+  // Answers
+  correctOption       String?      // 'A', 'B', 'C', 'D' for MCQ
+  correctOptions      String[]     // ['A', 'B', 'C'] for MSQ
+  integerAnswer       Int?         // For integer type
+  rangeMin            Float?       // For range type
+  rangeMax            Float?       // For range type
+  
+  // Solution & Explanation
+  explanation         String       @db.Text
+  solutionSteps       Json?        // Detailed step-by-step solution
+  explanationVideoUrl String?
+  mathSolution        String?      @db.Text // KaTeX for math solutions
+  
+  // Metadata
+  difficulty          Difficulty   @default(MEDIUM)
+  marks               Float        @default(1.0)
+  negativeMarks       Float        @default(0.25)
+  partialMarking      Boolean      @default(false)
+  partialMarkingRules Json?        // Rules for partial marking
+  timeToSolve         Int          @default(60)
+  yearAsked           Int?
+  examName            String?      // e.g., "JEE Main 2023"
+  
+  // Analytics
+  timesAttempted      Int          @default(0)
+  timesCorrect        Int          @default(0)
+  timesPartialCorrect Int          @default(0)
+  averageTimeTaken    Int          @default(0)
+  successRate         Float        @default(0)
+  
+  // Content Management
+  tags                String[]
+  createdBy           String?
+  verifiedBy          String?
+  isVerified          Boolean      @default(false)
+  moderationStatus    ModerationStatus @default(PENDING)
+  moderationNotes     String?      @db.Text
+  version             Int          @default(1)
+  parentQuestionId    String?      // For versioning
+  isActive            Boolean      @default(true)
+  
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  publishedAt         DateTime?
+
+  topic        Topic             @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userProgress UserProgress[]
+  bookmarks    Bookmark[]
+  reports      QuestionReport[]
+  questionVersions Question[] @relation("QuestionVersions")
+  parentQuestion   Question?  @relation("QuestionVersions", fields: [parentQuestionId], references: [id])
+
+  @@index([topicId])
+  @@index([difficulty])
+  @@index([isActive])
+  @@index([questionType])
+  @@index([moderationStatus])
+  @@index([createdBy])
+  @@map("questions")
+}
+
+enum QuestionType {
+  MCQ          // Single Correct
+  MSQ          // Multiple Correct
+  INTEGER      // Numerical Answer
+  RANGE        // Answer in a range
+  SUBJECTIVE   // Text answer
+  TRUE_FALSE
+  MATCH_COLUMN
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+// ============================================================================
+// TEST MODELS (Enhanced with sections, negative marking, reattempts)
+// ============================================================================
+
+model Test {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?  @db.Text
+  categoryId      String
+  testType        TestType @default(FULL_LENGTH)
+  
+  // Timing
+  duration        Int      // Total duration in minutes
+  sectionDurations Json?   // Per-section timing if applicable
+  
+  // Structure
+  totalQuestions  Int
+  totalMarks      Float
+  passingMarks    Float
+  questionIds     String[]
+  sections        Json?    // Section structure with questions
+  
+  // Test Configuration
+  instructions    String?  @db.Text
+  hasNegativeMarking Boolean @default(true)
+  negativeMarkingRules Json? // Custom negative marking per section
+  allowReview     Boolean  @default(true)
+  allowReattempt  Boolean  @default(true)
+  maxAttempts     Int      @default(3)
+  showSolutions   Boolean  @default(true)
+  solutionsAvailableAfter DateTime? // When solutions become available
+  shuffleQuestions Boolean @default(false)
+  shuffleOptions  Boolean  @default(false)
+  
+  // Access Control
+  isFree          Boolean  @default(false)
+  requiredPlan    SubscriptionPlan? // Required subscription
+  unlockPoints    Int?     // Points needed to unlock
+  
+  // Metadata
+  order           Int      @default(0)
+  isActive        Boolean  @default(true)
+  isPremium       Boolean  @default(false)
+  difficulty      Difficulty @default(MEDIUM)
+  tags            String[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  publishedAt     DateTime?
+
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attempts TestAttempt[]
+  challengeTests DailyChallenge[]
+
+  @@index([categoryId])
+  @@index([testType])
+  @@index([isFree])
+  @@index([isPremium])
+  @@index([difficulty])
+  @@map("tests")
+}
+
+enum TestType {
+  FULL_LENGTH
+  SECTIONAL
+  TOPIC_WISE
+  PREVIOUS_YEAR
+  CUSTOM
+  DAILY_CHALLENGE
+  SPEED_TEST
+}
+
+model TestAttempt {
+  id             String        @id @default(cuid())
+  userId         String
+  testId         String
+  attemptNumber  Int           @default(1)
+  
+  // Timing
+  startTime      DateTime
+  endTime        DateTime?
+  timeTaken      Int?
+  sectionTimings Json?         // Time spent per section
+  
+  // Responses
+  answers        Json          // User answers
+  markedForReview String[]     // Question IDs marked for review
+  visitedQuestions String[]    // Questions that were viewed
+  
+  // Scoring
+  score          Float         @default(0)
+  totalMarks     Float
+  accuracy       Float         @default(0)
+  correctAnswers Int           @default(0)
+  wrongAnswers   Int           @default(0)
+  partialCorrect Int           @default(0)
+  unattempted    Int           @default(0)
+  
+  // Section-wise performance
+  sectionScores  Json?
+  
+  // Ranking
+  rank           Int?
+  percentile     Float?
+  
+  // Report & Solutions
+  detailedReport Json?         // Question-wise analysis
+  weakTopics     String[]
+  strongTopics   String[]
+  solutionsViewed Boolean      @default(false)
+  
+  status         AttemptStatus @default(IN_PROGRESS)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([testId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("test_attempts")
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  UNDER_REVIEW
+}
+
+// ============================================================================
+// PROGRESS & ANALYTICS MODELS (Enhanced with deep insights)
+// ============================================================================
+
+model UserProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  questionId     String
+  attemptNumber  Int      @default(1)
+  isCorrect      Boolean
+  isPartialCorrect Boolean @default(false)
+  selectedOption String?
+  selectedOptions String[] // For MSQ
+  integerAnswer  Int?
+  timeTaken      Int
+  hintsUsed      Int      @default(0)
+  solutionViewed Boolean  @default(false)
+  attemptedAt    DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([questionId])
+  @@index([isCorrect])
+  @@index([attemptedAt])
+  @@map("user_progress")
+}
+
+model Analytics {
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  
+  // Overall Stats
+  totalTestsAttempted     Int       @default(0)
+  totalQuestionsAttempted Int       @default(0)
+  totalCorrect            Int       @default(0)
+  totalWrong              Int       @default(0)
+  totalPartialCorrect     Int       @default(0)
+  overallAccuracy         Float     @default(0)
+  totalTimeSpent          Int       @default(0)
+  averageSpeed            Float     @default(0) // Questions per hour
+  
+  // Streaks
+  currentStreak           Int       @default(0)
+  longestStreak           Int       @default(0)
+  lastActivityDate        DateTime?
+  
+  // Topic Performance
+  strongTopics            String[]
+  weakTopics              String[]
+  topicWiseAccuracy       Json?     // { topicId: accuracy }
+  subjectWiseAccuracy     Json?     // { subjectId: accuracy }
+  
+  // Time Analytics
+  preferredStudyTime      String?
+  peakPerformanceHour     Int?
+  averageSessionDuration  Int       @default(0)
+  totalSessions           Int       @default(0)
+  
+  // Cohort & Retention
+  cohortMonth             String?   // e.g., "2024-01" for cohort analysis
+  retentionDay1           Boolean   @default(false)
+  retentionDay7           Boolean   @default(false)
+  retentionDay30          Boolean   @default(false)
+  daysSinceSignup         Int       @default(0)
+  
+  // Trends (last 30 days)
+  accuracyTrend           Json?     // Daily accuracy
+  speedTrend              Json?     // Daily speed
+  timeTrend               Json?     // Daily time spent
+  
+  updatedAt               DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([cohortMonth])
+  @@map("analytics")
+}
+
+// ============================================================================
+// STUDY PLANNER (Enhanced with goals, streaks, reminders)
+// ============================================================================
+
+model StudyPlan {
+  id                   String   @id @default(cuid())
+  userId               String
+  planName             String
+  targetExam           String
+  examDate             DateTime?
+  
+  // Daily Goals
+  dailyTargetQuestions Int      @default(50)
+  dailyTargetMinutes   Int      @default(120)
+  dailyTargetTopics    Int      @default(3)
+  
+  // Weekly Goals
+  weeklyTargetTests    Int      @default(3)
+  weeklyTargetChapters Int      @default(5)
+  
+  // Schedule
+  topicsToCover        Json     // Planned topics
+  weeklySchedule       Json     // Day-wise plan
+  milestones           Json?    // Important checkpoints
+  
+  // Progress Tracking
+  completionPercentage Float    @default(0)
+  questionsCompleted   Int      @default(0)
+  testsCompleted       Int      @default(0)
+  currentStreak        Int      @default(0)
+  
+  // Reminders
+  reminderTime         String?  // e.g., "09:00"
+  reminderDays         String[] // ["MON", "TUE", "WED"]
+  emailReminders       Boolean  @default(true)
+  pushNotifications    Boolean  @default(true)
+  
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals StudyGoal[]
+  sessions StudySession[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("study_plans")
+}
+
+model StudyGoal {
+  id              String   @id @default(cuid())
+  studyPlanId     String
+  goalType        GoalType
+  title           String
+  description     String?
+  targetValue     Int
+  currentValue    Int      @default(0)
+  deadline        DateTime?
+  isCompleted     Boolean  @default(false)
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  studyPlan StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+
+  @@index([studyPlanId])
+  @@index([isCompleted])
+  @@map("study_goals")
+}
+
+enum GoalType {
+  QUESTIONS_COUNT
+  TESTS_COUNT
+  ACCURACY_TARGET
+  TOPIC_COMPLETION
+  TIME_SPENT
+  STREAK_DAYS
+}
+
+model StudySession {
+  id              String   @id @default(cuid())
+  userId          String
+  studyPlanId     String?
+  startTime       DateTime
+  endTime         DateTime?
+  duration        Int?     // in minutes
+  questionsAttempted Int   @default(0)
+  questionsCorrect   Int   @default(0)
+  topicsCovered   String[]
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyPlan StudyPlan? @relation(fields: [studyPlanId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([studyPlanId])
+  @@index([startTime])
+  @@map("study_sessions")
+}
+
+// ============================================================================
+// GAMIFICATION MODELS
+// ============================================================================
+
+model Gamification {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  totalPoints      Int       @default(0)
+  currentLevel     Int       @default(1)
+  experiencePoints Int       @default(0)
+  dailyStreak      Int       @default(0)
+  weeklyRank       Int?
+  monthlyRank      Int?
+  allTimeRank      Int?
+  lastPointEarned  DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([totalPoints])
+  @@map("gamification")
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  rarity      BadgeRarity @default(COMMON)
+  points      Int         @default(0)
+  criteria    Json
+  createdAt   DateTime    @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+enum BadgeRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  userId      String
+  badgeId     String
+  unlockedAt  DateTime @default(now())
+  isDisplayed Boolean  @default(false)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+model Leaderboard {
+  id          String            @id @default(cuid())
+  userId      String
+  categoryId  String?
+  period      LeaderboardPeriod
+  score       Float
+  rank        Int
+  testsTaken  Int
+  accuracy    Float
+  periodStart DateTime
+  periodEnd   DateTime
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([userId, period, periodStart])
+  @@index([period, rank])
+  @@map("leaderboard")
+}
+
+enum LeaderboardPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ALL_TIME
+}
+
+// ============================================================================
+// UTILITY MODELS
+// ============================================================================
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@map("bookmarks")
+}
+
+model QuestionReport {
+  id                  String       @id @default(cuid())
+  questionId          String
+  reportedBy          String
+  reportType          ReportType
+  description         String       @db.Text
+  suggestedCorrection String?      @db.Text
+  status              ReportStatus @default(PENDING)
+  rewardGiven         Int          @default(0)
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  createdAt           DateTime     @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  reporter User     @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@index([status])
+  @@map("question_reports")
+}
+
+enum ReportType {
+  WRONG_ANSWER
+  WRONG_QUESTION
+  UNCLEAR
+  DUPLICATE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+model UserCategory {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId])
+  @@index([userId])
+  @@index([categoryId])
+  @@map("user_categories")
+}
+
+// ============================================================================
+// AI & CHAT MODELS
+// ============================================================================
+
+model ChatSession {
+  id              String   @id @default(cuid())
+  userId          String
+  title           String   @default("New Chat")
+  questionId      String?  // Related question if chat is about a specific question
+  context         String?  @db.Text // RAG context
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@index([questionId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id              String      @id @default(cuid())
+  sessionId       String
+  role            MessageRole
+  content         String      @db.Text
+  
+  // AI metadata
+  model           String?     // e.g., "gpt-4", "claude-3"
+  tokens          Int?
+  ragSources      Json?       // Sources used for RAG
+  confidence      Float?      // AI confidence score
+  
+  createdAt       DateTime    @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model AIHint {
+  id              String   @id @default(cuid())
+  questionId      String
+  hintLevel       Int      // 1 = subtle, 2 = moderate, 3 = detailed
+  hintText        String   @db.Text
+  affectsScore    Boolean  @default(true) // Whether using hint reduces score
+  scoreReduction  Float    @default(0.1)  // How much to reduce (10% by default)
+  aiGenerated     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([questionId])
+  @@map("ai_hints")
+}
+
+model AIGeneratedQuestion {
+  id              String   @id @default(cuid())
+  sourceQuestionId String? // If generated based on existing question
+  prompt          String   @db.Text
+  generatedData   Json     // Full question data
+  aiModel         String
+  status          QuestionGenerationStatus @default(PENDING_REVIEW)
+  reviewedBy      String?
+  approvedQuestionId String? // If approved and created as real question
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("ai_generated_questions")
+}
+
+enum QuestionGenerationStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+model SubjectiveEvaluation {
+  id              String   @id @default(cuid())
+  attemptId       String
+  questionId      String
+  userAnswer      String   @db.Text
+  
+  // AI Evaluation
+  aiScore         Float?
+  aiRubric        Json?    // Detailed rubric-based scoring
+  aiFeedback      String?  @db.Text
+  aiModel         String?
+  
+  // Manual Override
+  manualScore     Float?
+  manualFeedback  String?  @db.Text
+  evaluatedBy     String?
+  
+  finalScore      Float?
+  status          EvaluationStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+  evaluatedAt     DateTime?
+
+  @@index([attemptId])
+  @@index([status])
+  @@map("subjective_evaluations")
+}
+
+enum EvaluationStatus {
+  PENDING
+  AI_EVALUATED
+  MANUALLY_REVIEWED
+  FINALIZED
+}
+
+model DocumentUpload {
+  id              String   @id @default(cuid())
+  uploadedBy      String
+  fileName        String
+  fileUrl         String
+  fileType        String   // pdf, docx, jpg, png
+  uploadType      UploadType
+  
+  // AI Processing
+  extractedText   String?  @db.Text
+  aiProcessingStatus ProcessingStatus @default(PENDING)
+  aiModel         String?
+  extractedQuestions Json? // Questions extracted by AI
+  errorMessage    String?  @db.Text
+  
+  // Metadata
+  examName        String?
+  year            Int?
+  categoryId      String?
+  subjectId       String?
+  
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([uploadedBy])
+  @@index([aiProcessingStatus])
+  @@index([uploadType])
+  @@map("document_uploads")
+}
+
+enum UploadType {
+  QUESTION_PAPER
+  SOLUTION_SHEET
+  STUDY_MATERIAL
+  OTHER
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ============================================================================
+// RECOMMENDATION & PERSONALIZATION MODELS
+// ============================================================================
+
+model UserRecommendation {
+  id              String   @id @default(cuid())
+  userId          String
+  recommendationType RecommendationType
+  
+  // Recommendation data
+  itemId          String   // Test ID or Topic ID
+  itemType        String   // "test" or "topic"
+  score           Float    // Recommendation score (0-1)
+  reason          String?  // Why recommended
+  
+  // Spaced Repetition
+  nextReviewDate  DateTime?
+  reviewCount     Int      @default(0)
+  easeFactor      Float    @default(2.5) // SM-2 algorithm
+  interval        Int      @default(1)   // Days until next review
+  
+  // Metadata
+  isViewed        Boolean  @default(false)
+  isCompleted     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([recommendationType])
+  @@index([nextReviewDate])
+  @@map("user_recommendations")
+}
+
+enum RecommendationType {
+  NEXT_BEST_TEST
+  WEAK_TOPIC_PRACTICE
+  SPACED_REPETITION
+  SIMILAR_STUDENTS
+  TRENDING
+  PREREQUISITE
+}
+
+model UserInteraction {
+  id              String   @id @default(cuid())
+  userId          String
+  itemId          String
+  itemType        String   // "question", "test", "topic"
+  interactionType InteractionType
+  
+  // Interaction details
+  timeSpent       Int?     // seconds
+  completed       Boolean  @default(false)
+  score           Float?
+  metadata        Json?
+  
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([itemType, itemId])
+  @@index([createdAt])
+  @@map("user_interactions")
+}
+
+enum InteractionType {
+  VIEW
+  START
+  COMPLETE
+  BOOKMARK
+  SHARE
+  SKIP
+  HINT_USED
+}
+
+// ============================================================================
+// SEARCH & INDEXING
+// ============================================================================
+
+model SearchIndex {
+  id              String   @id @default(cuid())
+  documentId      String   @unique // Question ID or Test ID
+  documentType    String   // "question" or "test"
+  
+  // Searchable content
+  title           String
+  content         String   @db.Text
+  tags            String[]
+  categoryName    String?
+  subjectName     String?
+  topicName       String?
+  
+  // Metadata for filtering
+  difficulty      String?
+  examName        String?
+  year            Int?
+  isPremium       Boolean  @default(false)
+  
+  // Search optimization
+  searchVector    String?  @db.Text // For full-text search
+  popularity      Int      @default(0)
+  
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([documentType])
+  @@index([difficulty])
+  @@index([isPremium])
+  @@map("search_index")
+}
+
+// ============================================================================
+// MOBILE & PWA MODELS
+// ============================================================================
+
+model PushSubscription {
+  id              String   @id @default(cuid())
+  userId          String
+  endpoint        String   @unique
+  p256dh          String
+  auth            String
+  deviceInfo      Json?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("push_subscriptions")
+}
+
+model OfflineQueue {
+  id              String   @id @default(cuid())
+  userId          String
+  action          String   // "submit_answer", "complete_test", etc.
+  payload         Json
+  status          QueueStatus @default(PENDING)
+  attempts        Int      @default(0)
+  lastAttempt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@map("offline_queue")
+}
+
+enum QueueStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  userId          String
+  type            NotificationType
+  title           String
+  message         String   @db.Text
+  actionUrl       String?
+  
+  // Notification metadata
+  isRead          Boolean  @default(false)
+  isSent          Boolean  @default(false)
+  sentAt          DateTime?
+  readAt          DateTime?
+  
+  // Scheduling
+  scheduledFor    DateTime?
+  
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([scheduledFor])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  TEST_REMINDER
+  CHALLENGE_AVAILABLE
+  STREAK_MILESTONE
+  ACHIEVEMENT_UNLOCKED
+  SUBSCRIPTION_EXPIRING
+  NEW_CONTENT
+  STUDY_REMINDER
+  PERFORMANCE_INSIGHT
+}
+
+// ============================================================================
+// PAYMENT & SUBSCRIPTION MODELS
+// ============================================================================
+
+model Subscription {
+  id                String           @id @default(cuid())
+  userId            String
+  plan              SubscriptionPlan
+  status            SubscriptionStatus @default(ACTIVE)
+  
+  // Payment Gateway IDs
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  razorpayCustomerId    String?
+  razorpaySubscriptionId String?
+  
+  // Pricing
+  amount            Float
+  currency          String           @default("USD")
+  billingCycle      BillingCycle     @default(MONTHLY)
+  
+  // Dates
+  startDate         DateTime         @default(now())
+  endDate           DateTime
+  trialEndsAt       DateTime?
+  canceledAt        DateTime?
+  
+  // Limits & Usage
+  testsLimit        Int              @default(-1) // -1 = unlimited
+  testsUsed         Int              @default(0)
+  questionsLimit    Int              @default(-1)
+  questionsUsed     Int              @default(0)
+  
+  // Auto-renewal
+  autoRenew         Boolean          @default(true)
+  nextBillingDate   DateTime?
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([endDate])
+  @@map("subscriptions")
+}
+
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PREMIUM
+  ULTIMATE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  LIFETIME
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  subscriptionId  String?
+  
+  // Payment Details
+  amount          Float
+  currency        String        @default("USD")
+  paymentMethod   PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  
+  // Gateway Details
+  stripePaymentId String?
+  razorpayPaymentId String?
+  razorpayOrderId String?
+  
+  // Metadata
+  description     String?
+  metadata        Json?
+  failureReason   String?
+  receiptUrl      String?
+  
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  STRIPE
+  RAZORPAY
+  PAYPAL
+  CREDIT_CARD
+  UPI
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Coupon {
+  id              String       @id @default(cuid())
+  code            String       @unique
+  description     String?
+  discountType    DiscountType
+  discountValue   Float        // Percentage or fixed amount
+  
+  // Usage Limits
+  maxUses         Int?         // Total uses allowed
+  usedCount       Int          @default(0)
+  maxUsesPerUser  Int          @default(1)
+  
+  // Validity
+  validFrom       DateTime     @default(now())
+  validUntil      DateTime?
+  
+  // Applicability
+  applicablePlans String[]     // Plan IDs this coupon applies to
+  minimumAmount   Float?
+  
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  redemptions CouponRedemption[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("coupons")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model CouponRedemption {
+  id              String   @id @default(cuid())
+  couponId        String
+  userId          String
+  discountAmount  Float
+  redeemedAt      DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([userId])
+  @@map("coupon_redemptions")
+}
+
+// ============================================================================
+// DAILY CHALLENGES & GAMIFICATION
+// ============================================================================
+
+model DailyChallenge {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  testId          String?
+  questionIds     String[] // If not using a test
+  title           String
+  description     String?
+  
+  // Rewards
+  basePoints      Int      @default(50)
+  bonusPoints     Int      @default(20)
+  badgeId         String?
+  
+  // Difficulty & Stats
+  difficulty      Difficulty @default(MEDIUM)
+  participantsCount Int     @default(0)
+  averageScore    Float    @default(0)
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  test Test? @relation(fields: [testId], references: [id], onDelete: SetNull)
+  attempts ChallengeAttempt[]
+
+  @@index([date])
+  @@index([isActive])
+  @@map("daily_challenges")
+}
+
+model ChallengeAttempt {
+  id              String   @id @default(cuid())
+  challengeId     String
+  userId          String
+  
+  // Performance
+  score           Float
+  timeTaken       Int
+  rank            Int?
+  
+  // Rewards Earned
+  pointsEarned    Int      @default(0)
+  bonusEarned     Boolean  @default(false)
+  badgeUnlocked   Boolean  @default(false)
+  
+  completedAt     DateTime @default(now())
+
+  challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([challengeId])
+  @@index([userId])
+  @@map("challenge_attempts")
+}
+
+// ============================================================================
+// MONITORING & AUDIT MODELS
+// ============================================================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  
+  // Who & When
+  userId        String?
+  userEmail     String?
+  userRole      Role?
+  ipAddress     String?
+  userAgent     String?
+  
+  // What
+  action        AuditAction
+  resource      String       // e.g., "Question", "Test", "User"
+  resourceId    String?
+  
+  // Details
+  changes       Json?        // Before/after values
+  metadata      Json?        // Additional context
+  status        AuditStatus  @default(SUCCESS)
+  errorMessage  String?
+  
+  // Performance
+  duration      Int?         // milliseconds
+  
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  // User actions
+  USER_LOGIN
+  USER_LOGOUT
+  USER_REGISTER
+  USER_UPDATE
+  USER_DELETE
+  
+  // Content actions
+  QUESTION_CREATE
+  QUESTION_UPDATE
+  QUESTION_DELETE
+  QUESTION_APPROVE
+  QUESTION_REJECT
+  
+  TEST_CREATE
+  TEST_UPDATE
+  TEST_DELETE
+  TEST_PUBLISH
+  
+  // Test taking
+  TEST_START
+  TEST_SUBMIT
+  TEST_REVIEW
+  
+  // Payment actions
+  PAYMENT_INITIATED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_CANCELLED
+  
+  // Admin actions
+  BULK_IMPORT
+  BULK_EXPORT
+  SETTINGS_UPDATE
+  ROLE_CHANGE
+  
+  // Security events
+  PASSWORD_RESET
+  EMAIL_VERIFIED
+  SUSPICIOUS_ACTIVITY
+  RATE_LIMIT_HIT
+  
+  // AI actions
+  AI_CHAT
+  AI_HINT_USED
+  AI_QUESTION_GENERATED
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+  PENDING
+  CANCELLED
+}
+
+model ErrorLog {
+  id            String      @id @default(cuid())
+  
+  // Error details
+  message       String
+  stack         String?     @db.Text
+  code          String?
+  severity      ErrorSeverity @default(ERROR)
+  
+  // Context
+  userId        String?
+  path          String?
+  method        String?
+  query         Json?
+  body          Json?
+  headers       Json?
+  
+  // Environment
+  environment   String?     // development, production
+  version       String?     // app version
+  userAgent     String?
+  ipAddress     String?
+  
+  // Metadata
+  metadata      Json?
+  resolved      Boolean     @default(false)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  
+  createdAt     DateTime    @default(now())
+  
+  @@index([severity, createdAt])
+  @@index([userId, createdAt])
+  @@index([resolved, createdAt])
+  @@map("error_logs")
+}
+
+enum ErrorSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model SystemMetric {
+  id            String   @id @default(cuid())
+  
+  // Metric details
+  name          String
+  value         Float
+  unit          String?
+  tags          Json?
+  
+  // Timestamp
+  timestamp     DateTime @default(now())
+  
+  @@index([name, timestamp])
+  @@index([timestamp])
+  @@map("system_metrics")
+}
+
+// ============================================================================
+// BACKGROUND JOBS (BullMQ)
+// ============================================================================
+
+model Job {
+  id            String      @id @default(cuid())
+  
+  // Job details
+  name          String
+  type          JobType
+  queue         String      @default("default")
+  
+  // Payload
+  data          Json
+  result        Json?
+  
+  // Status
+  status        JobStatus   @default(PENDING)
+  progress      Int         @default(0)
+  
+  // Timing
+  priority      Int         @default(0)
+  attempts      Int         @default(0)
+  maxAttempts   Int         @default(3)
+  
+  // Schedule
+  scheduledFor  DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  failedAt      DateTime?
+  
+  // Error handling
+  error         String?     @db.Text
+  stackTrace    String?     @db.Text
+  
+  // Metadata
+  createdBy     String?
+  metadata      Json?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([status, scheduledFor])
+  @@index([queue, status])
+  @@index([type, status])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+enum JobType {
+  // Test processing
+  SCORE_TEST
+  GENERATE_ANALYTICS
+  GENERATE_RANK
+  
+  // Exports
+  EXPORT_PDF
+  EXPORT_CSV
+  EXPORT_REPORT
+  
+  // Emails
+  SEND_EMAIL
+  SEND_BULK_EMAIL
+  SEND_REMINDER
+  
+  // Search indexing
+  INDEX_QUESTION
+  INDEX_TEST
+  REINDEX_ALL
+  
+  // AI tasks
+  AI_GENERATE_QUESTIONS
+  AI_EVALUATE_SUBJECTIVE
+  AI_EXTRACT_DOCUMENT
+  
+  // Cleanup
+  CLEANUP_OLD_DATA
+  CLEANUP_TEMP_FILES
+  PURGE_LOGS
+  
+  // Notifications
+  SEND_PUSH_NOTIFICATION
+  SEND_CHALLENGE_REMINDER
+  
+  // Payments
+  PROCESS_REFUND
+  SYNC_SUBSCRIPTION
+}
+
+enum JobStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  DELAYED
+  CANCELLED
+  STUCK
+}
+
+// ============================================================================
+// SECURITY MODELS
+// ============================================================================
+
+model RateLimitLog {
+  id            String   @id @default(cuid())
+  
+  // Identifier
+  identifier    String   // user ID, IP, or API key
+  identifierType String  // "user", "ip", "api_key"
+  
+  // Request details
+  endpoint      String
+  method        String
+  
+  // Rate limit
+  limit         Int
+  windowMs      Int
+  hits          Int      @default(1)
+  
+  // Window
+  windowStart   DateTime
+  windowEnd     DateTime
+  
+  // Blocking
+  blocked       Boolean  @default(false)
+  blockedUntil  DateTime?
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([identifier, endpoint, windowStart])
+  @@index([windowEnd])
+  @@map("rate_limit_logs")
+}
+
+model ApiKey {
+  id            String      @id @default(cuid())
+  
+  // Key details
+  key           String      @unique
+  name          String
+  description   String?
+  
+  // Ownership
+  userId        String?
+  organizationId String?
+  
+  // Permissions
+  scopes        String[]
+  permissions   Json?
+  
+  // Usage
+  lastUsedAt    DateTime?
+  usageCount    Int         @default(0)
+  
+  // Rate limiting
+  rateLimit     Int?        // requests per hour
+  
+  // Status
+  isActive      Boolean     @default(true)
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  revokedBy     String?
+  revokedReason String?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([key])
+  @@index([userId])
+  @@index([isActive, expiresAt])
+  @@map("api_keys")
+}
+
+model SecurityEvent {
+  id            String         @id @default(cuid())
+  
+  // Event details
+  type          SecurityEventType
+  severity      SecuritySeverity
+  
+  // User/IP
+  userId        String?
+  ipAddress     String
+  userAgent     String?
+  country       String?
+  city          String?
+  
+  // Details
+  description   String
+  metadata      Json?
+  
+  // Resolution
+  resolved      Boolean        @default(false)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  resolution    String?
+  
+  createdAt     DateTime       @default(now())
+  
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([resolved])
+  @@map("security_events")
+}
+
+enum SecurityEventType {
+  FAILED_LOGIN
+  BRUTE_FORCE_ATTEMPT
+  SUSPICIOUS_IP
+  MULTIPLE_DEVICES
+  PASSWORD_CHANGED
+  EMAIL_CHANGED
+  UNUSUAL_ACTIVITY
+  API_KEY_LEAKED
+  CSRF_ATTEMPT
+  XSS_ATTEMPT
+  SQL_INJECTION_ATTEMPT
+  RATE_LIMIT_EXCEEDED
+  INVALID_TOKEN
+  UNAUTHORIZED_ACCESS
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ============================================================================
+// CACHE MODELS
+// ============================================================================
+
+model CacheEntry {
+  id            String   @id @default(cuid())
+  
+  // Cache key
+  key           String   @unique
+  
+  // Value
+  value         Json
+  
+  // TTL
+  expiresAt     DateTime?
+  
+  // Metadata
+  tags          String[]
+  hitCount      Int      @default(0)
+  lastAccessedAt DateTime @default(now())
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([expiresAt])
+  @@index([tags])
+  @@map("cache_entries")
+}
+
+// ============================================================================
+// EVENTS & WEBHOOKS
+// ============================================================================
+
+model Event {
+  id            String      @id @default(cuid())
+  
+  // Event details
+  name          String
+  type          EventType
+  
+  // Payload
+  data          Json
+  
+  // Source
+  source        String?
+  userId        String?
+  
+  // Processing
+  processed     Boolean     @default(false)
+  processedAt   DateTime?
+  
+  // Retry
+  retries       Int         @default(0)
+  maxRetries    Int         @default(3)
+  
+  createdAt     DateTime    @default(now())
+  
+  @@index([processed, createdAt])
+  @@index([type, processed])
+  @@map("events")
+}
+
+enum EventType {
+  USER_REGISTERED
+  USER_VERIFIED
+  TEST_COMPLETED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_CANCELLED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  QUESTION_REPORTED
+  ACHIEVEMENT_UNLOCKED
+  DAILY_CHALLENGE_COMPLETED
+  STREAK_MILESTONE
+}
+
+model Webhook {
+  id            String      @id @default(cuid())
+  
+  // Webhook details
+  url           String
+  secret        String
+  description   String?
+  
+  // Events to listen
+  events        EventType[]
+  
+  // Status
+  isActive      Boolean     @default(true)
+  
+  // Stats
+  successCount  Int         @default(0)
+  failureCount  Int         @default(0)
+  lastSuccess   DateTime?
+  lastFailure   DateTime?
+  lastError     String?
+  
+  // Ownership
+  userId        String?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([isActive])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id            String          @id @default(cuid())
+  
+  webhookId     String
+  eventId       String
+  
+  // Request
+  url           String
+  method        String          @default("POST")
+  headers       Json?
+  payload       Json
+  
+  // Response
+  statusCode    Int?
+  responseBody  String?         @db.Text
+  responseTime  Int?            // milliseconds
+  
+  // Status
+  status        DeliveryStatus  @default(PENDING)
+  attempts      Int             @default(0)
+  error         String?
+  
+  createdAt     DateTime        @default(now())
+  deliveredAt   DateTime?
+  
+  @@index([webhookId, status])
+  @@index([eventId])
+  @@map("webhook_deliveries")
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  RETRYING
+}
