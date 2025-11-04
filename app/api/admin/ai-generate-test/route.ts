@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
   const body = await req.json()
-  const { topic, examType, difficulty, numQuestions, categoryId, courseId, examId } = body
+  const { topic, examType, difficulty, numQuestions, categoryId, courseId } = body
 
     if (!topic || !numQuestions) {
       return NextResponse.json(
@@ -30,60 +30,47 @@ export async function POST(req: NextRequest) {
     // Helper to slugify
     const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
 
-    // Try to resolve Exam from courseId or examId (for proper placement)
-    let resolvedExam: any = null
+    // Resolve Course if provided
+    let resolvedCourse: any = null
     if (courseId) {
-      const course = await prisma.course.findUnique({ where: { id: courseId } })
-      if (course?.examId) {
-        resolvedExam = await prisma.exam.findUnique({ where: { id: course.examId } })
-      }
-    }
-    if (!resolvedExam && examId) {
-      resolvedExam = await prisma.exam.findUnique({ where: { id: examId } })
+      resolvedCourse = await prisma.course.findUnique({ where: { id: courseId } })
     }
 
-    // Get or create category (prefer mapping to Exam name when available)
+    // Get or create category (prefer mapping to Course name when available)
     let category = categoryId ? await prisma.category.findUnique({ where: { id: categoryId } }) : null
     if (!category) {
-      const preferredCategoryName = resolvedExam?.name || examType || topic
+      const preferredCategoryName = examType || topic
       const preferredSlug = slugify(preferredCategoryName)
-      category = await prisma.category.findFirst({ where: { slug: preferredSlug } })
-      if (!category) {
-        category = await prisma.category.create({
-          data: {
-            name: preferredCategoryName,
-            slug: preferredSlug,
-            description: `Auto-generated category for ${topic}`,
-            isActive: true,
-          },
+      
+      // If we have a course, try to find or create category under that course
+      if (resolvedCourse) {
+        category = await prisma.category.findFirst({ 
+          where: { slug: preferredSlug, courseId: resolvedCourse.id } 
         })
+        if (!category) {
+          category = await prisma.category.create({
+            data: {
+              name: preferredCategoryName,
+              slug: preferredSlug,
+              description: `Auto-generated category for ${topic}`,
+              isActive: true,
+              courseId: resolvedCourse.id,
+            },
+          })
+        }
+      } else {
+        // No course specified - check if category exists or create one
+        category = await prisma.category.findFirst({ where: { slug: preferredSlug } })
+        if (!category) {
+          return NextResponse.json(
+            { error: 'Course is required to create a new category. Please provide courseId.' },
+            { status: 400 }
+          )
+        }
       }
     }
 
-    // Optionally resolve/create a Test Series under the Exam (if available)
-    let seriesId: string | undefined
-    if (resolvedExam) {
-      const seriesTitle = `${topic} Practice` 
-      const seriesSlug = slugify(seriesTitle)
-      let series = await prisma.testSeries.findFirst({ where: { examId: resolvedExam.id, slug: seriesSlug } })
-      if (!series) {
-        series = await prisma.testSeries.create({
-          data: {
-            examId: resolvedExam.id,
-            title: seriesTitle,
-            slug: seriesSlug,
-            description: `Practice tests for ${resolvedExam.name} - ${topic}`,
-            isFree: true,
-            isPremium: false,
-            totalTests: 0,
-            totalQuestions: 0,
-          }
-        })
-      }
-      seriesId = series.id
-    }
-
-    // Create test
+    // Create test directly under category (new simplified hierarchy)
     const test = await prisma.test.create({
       data: {
         title: `${topic} - ${examType || 'Practice Test'}`,
@@ -97,7 +84,6 @@ export async function POST(req: NextRequest) {
         difficulty: difficulty?.toUpperCase() || 'MEDIUM',
         isActive: true,
         isFree: true,
-        ...(seriesId ? { seriesId } : {}),
       },
     })
 
@@ -200,10 +186,10 @@ export async function POST(req: NextRequest) {
         title: test.title,
         questionsCount: questionIds.length,
         categoryId: category.id,
-        seriesId: test.seriesId || null,
+        courseId: resolvedCourse?.id || null,
       },
       questionsGenerated: questions.length,
-      message: `Test created successfully. ${questions.length} questions generated and linked${resolvedExam ? ' under the proper exam series' : ''}.`,
+      message: `Test created successfully. ${questions.length} questions generated and linked to ${category.name}.`,
     })
   } catch (error) {
     console.error('AI Test Generation Error:', error)
