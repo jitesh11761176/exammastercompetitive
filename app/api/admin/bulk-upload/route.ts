@@ -207,11 +207,5 @@ export async function POST(req: NextRequest) {
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60 // 60 seconds for large file processing
-
-// Increase body size limit for this route
-export const config = {
-  api: {
-    bodyParser: false, // Disable default body parser
-    responseLimit: false,
-  },
-}
+// Note: removed deprecated `export const config` (Next.js now uses route segment config).
+// The route still exports `dynamic` and `runtime` above.
