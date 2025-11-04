@@ -14,23 +14,19 @@ export default async function ExamsPage() {
     redirect('/login')
   }
 
-  // Get all active exam categories with their exams and test series
-  const examCategories = await prisma.examCategory.findMany({
+  // Get all active courses with their categories and tests (NEW: Simplified hierarchy)
+  const courses = await prisma.course.findMany({
     where: { isActive: true },
     include: {
-      exams: {
+      categories: {
         where: { isActive: true },
         include: {
-          testSeries: {
-            include: {
-              tests: {
-                where: { isActive: true },
-                select: {
-                  id: true,
-                  title: true,
-                  seriesId: true
-                }
-              }
+          tests: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              title: true,
+              categoryId: true
             }
           }
         }
@@ -60,11 +56,11 @@ export default async function ExamsPage() {
     redirect('/login')
   }
 
-  // Calculate stats for each exam category
-  const categoryStats = examCategories.map(examCategory => {
-    // Get all test IDs under this exam category
-    const allTestIds = examCategory.exams.flatMap(exam => 
-      exam.testSeries.flatMap(series => series.tests.map(test => test.id))
+  // Calculate stats for each course (NEW: Simplified Course -> Category -> Test)
+  const courseStats = courses.map(course => {
+    // Get all test IDs under this course
+    const allTestIds = course.categories.flatMap(category => 
+      category.tests.map(test => test.id)
     )
     
     const totalTests = allTestIds.length
@@ -84,37 +80,37 @@ export default async function ExamsPage() {
     )
 
     return {
-      examCategory,
+      course,
       totalTests,
       completedTests,
       avgScore,
       recentAttempt,
-      totalExams: examCategory.exams.length
+      totalCategories: course.categories.length
     }
-  }).filter(stat => stat.totalTests > 0) // Only show categories with tests
+  }).filter(stat => stat.totalTests > 0) // Only show courses with tests
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Exam Categories</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Courses</h1>
           <p className="text-gray-600 mt-2">
-            Browse exam categories and take tests to prepare for your competitive exams
+            Browse courses and take tests to prepare for your competitive exams
           </p>
         </div>
       </div>
 
-      {/* Category Cards */}
+      {/* Course Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categoryStats.map(({ examCategory, totalTests, completedTests, avgScore, recentAttempt, totalExams }) => (
-          <Card key={examCategory.id} className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer h-full">
+        {courseStats.map(({ course, totalTests, completedTests, avgScore, recentAttempt, totalCategories }) => (
+          <Card key={course.id} className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer h-full">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-xl mb-2">{examCategory.name}</CardTitle>
+                  <CardTitle className="text-xl mb-2">{course.title}</CardTitle>
                   <CardDescription className="line-clamp-2">
-                    {examCategory.description || 'Prepare for competitive exams in this category'}
+                    {course.description || 'Prepare for competitive exams in this course'}
                   </CardDescription>
                 </div>
                 <BookOpen className="w-8 h-8 text-primary opacity-80" />
@@ -129,7 +125,7 @@ export default async function ExamsPage() {
                     <span className="text-xs font-medium">Total Tests</span>
                   </div>
                   <div className="text-2xl font-bold text-blue-900">{totalTests}</div>
-                  <div className="text-xs text-blue-600 mt-1">{totalExams} exam{totalExams !== 1 ? 's' : ''}</div>
+                  <div className="text-xs text-blue-600 mt-1">{totalCategories} categor{totalCategories !== 1 ? 'ies' : 'y'}</div>
                 </div>
                 
                 <div className="bg-green-50 rounded-lg p-3">
@@ -180,19 +176,23 @@ export default async function ExamsPage() {
                 </div>
               )}
 
-              {/* View Exams Button */}
-              <Link href={`/exams/category/${examCategory.id}`}>
-                <Button className="w-full mt-4" size="sm">
-                  View {totalExams} Exam{totalExams !== 1 ? 's' : ''}
-                </Button>
-              </Link>
+              {/* View Categories Button */}
+              <div className="space-y-2">
+                {course.categories.map(category => (
+                  <Link key={category.id} href={`/exams/category/${category.id}`}>
+                    <Button variant="outline" className="w-full" size="sm">
+                      {category.name} ({category.tests.length} test{category.tests.length !== 1 ? 's' : ''})
+                    </Button>
+                  </Link>
+                ))}
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
       {/* Empty State */}
-      {categoryStats.length === 0 && (
+      {courseStats.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
