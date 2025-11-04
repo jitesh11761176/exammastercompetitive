@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-// GET /api/enrollments - Get user's enrollments
+// GET /api/enrollments - Get user's course enrollments
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -19,27 +19,31 @@ export async function GET(req: NextRequest) {
       userId: session.user.id,
     }
 
-    if (status) {
-      where.status = status
-    }
+    // Note: CourseEnrollment doesn't have a status field in the current schema
+    // If you need status filtering, you may need to add it to the schema
+    // if (status) {
+    //   where.status = status
+    // }
 
-    const enrollments = await prisma.enrollment.findMany({
+    const enrollments = await prisma.courseEnrollment.findMany({
       where,
       include: {
-        series: {
+        course: {
           include: {
-            exam: {
-              include: {
-                category: true,
-              },
-            },
-            tests: {
+            categories: {
               where: {
                 isActive: true,
               },
-              select: {
-                id: true,
-                title: true,
+              include: {
+                tests: {
+                  where: {
+                    isActive: true,
+                  },
+                  select: {
+                    id: true,
+                    title: true,
+                  },
+                },
               },
             },
           },
