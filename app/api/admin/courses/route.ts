@@ -16,14 +16,25 @@ export async function GET() {
 
     const courses = await prisma.course.findMany({
       include: {
+        categories: {
+          include: {
+            _count: {
+              select: {
+                tests: true,
+                subjects: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
-            enrollments: true
+            enrollments: true,
+            categories: true
           }
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        order: 'asc'
       }
     })
 
@@ -49,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, thumbnail, price, isActive } = body
+    const { title, description, thumbnail, icon, tags, price, order, isActive, isFree } = body
 
     if (!title) {
       return NextResponse.json({ 
@@ -58,7 +69,22 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    // Generate slug from title
+    const slug = title.toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+    
+    // Check if slug already exists
+    const existingCourse = await prisma.course.findUnique({
+      where: { slug }
+    })
+    
+    if (existingCourse) {
+      return NextResponse.json({ 
+        success: false,
+        message: 'A course with this title already exists' 
+      }, { status: 400 })
+    }
 
     const course = await prisma.course.create({
       data: {
@@ -66,8 +92,12 @@ export async function POST(request: NextRequest) {
         slug,
         description: description || null,
         thumbnail: thumbnail || null,
+        icon: icon || null,
+        tags: tags || [],
         price: price || 0,
-        isActive: isActive !== undefined ? isActive : true
+        order: order || 0,
+        isActive: isActive !== undefined ? isActive : true,
+        isFree: isFree !== undefined ? isFree : false
       }
     })
 

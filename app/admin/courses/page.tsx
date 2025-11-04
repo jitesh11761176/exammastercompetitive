@@ -14,13 +14,25 @@ interface Course {
   title: string
   description: string | null
   thumbnail: string | null
+  icon: string | null
+  tags: string[]
   price: number
+  order: number
   isActive: boolean
+  isFree: boolean
   createdAt: string
   _count?: {
     enrollments: number
-    chapters: number
+    categories: number
   }
+  categories?: Array<{
+    id: string
+    name: string
+    _count: {
+      tests: number
+      subjects: number
+    }
+  }>
 }
 
 export default function CoursesPage() {
@@ -35,8 +47,12 @@ export default function CoursesPage() {
     title: '',
     description: '',
     thumbnail: '',
+    icon: '',
+    tags: [] as string[],
     price: 0,
-    isActive: true
+    order: 0,
+    isActive: true,
+    isFree: false
   })
 
   useEffect(() => {
@@ -83,8 +99,12 @@ export default function CoursesPage() {
           title: '',
           description: '',
           thumbnail: '',
+          icon: '',
+          tags: [],
           price: 0,
-          isActive: true
+          order: 0,
+          isActive: true,
+          isFree: false
         })
         fetchCourses()
       } else {
@@ -101,8 +121,12 @@ export default function CoursesPage() {
       title: course.title,
       description: course.description || '',
       thumbnail: course.thumbnail || '',
+      icon: course.icon || '',
+      tags: course.tags || [],
       price: course.price,
-      isActive: course.isActive
+      order: course.order || 0,
+      isActive: course.isActive,
+      isFree: course.isFree || false
     })
     setShowForm(true)
   }
@@ -171,8 +195,12 @@ export default function CoursesPage() {
               title: '',
               description: '',
               thumbnail: '',
+              icon: '',
+              tags: [],
               price: 0,
-              isActive: true
+              order: 0,
+              isActive: true,
+              isFree: false
             })
           }
         }}>
@@ -182,7 +210,7 @@ export default function CoursesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-gray-500">Total Courses</CardTitle>
@@ -203,21 +231,31 @@ export default function CoursesPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-500">Inactive Courses</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Categories</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-400">
-              {courses.filter(c => !c.isActive).length}
+            <div className="text-2xl font-bold text-blue-600">
+              {courses.reduce((sum, c) => sum + (c._count?.categories || 0), 0)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Total Tests</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              ₹{courses.reduce((sum, c) => sum + c.price, 0).toLocaleString()}
+            <div className="text-2xl font-bold text-purple-600">
+              {courses.reduce((sum, c) => sum + (c.categories?.reduce((s, cat) => s + cat._count.tests, 0) || 0), 0)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-500">Enrollments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              {courses.reduce((sum, c) => sum + (c._count?.enrollments || 0), 0)}
             </div>
           </CardContent>
         </Card>
@@ -298,8 +336,12 @@ export default function CoursesPage() {
                     title: '',
                     description: '',
                     thumbnail: '',
+                    icon: '',
+                    tags: [],
                     price: 0,
-                    isActive: true
+                    order: 0,
+                    isActive: true,
+                    isFree: false
                   })
                 }}>
                   Cancel
@@ -362,9 +404,28 @@ export default function CoursesPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Categories:</span>
+                      <span className="font-semibold">{course._count?.categories || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Tests:</span>
+                      <span className="font-semibold">
+                        {course.categories?.reduce((sum, cat) => sum + cat._count.tests, 0) || 0}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm pt-2 border-t">
                     <span className="text-gray-500">Price:</span>
-                    <span className="font-semibold">₹{course.price.toLocaleString()}</span>
+                    <span className="font-semibold">
+                      {course.isFree ? (
+                        <span className="text-green-600">Free</span>
+                      ) : (
+                        `₹${course.price.toLocaleString()}`
+                      )}
+                    </span>
                   </div>
                   
                   <div className="flex gap-2 pt-3">
