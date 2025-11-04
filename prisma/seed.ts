@@ -6,81 +6,137 @@ async function main() {
   console.log('🌱 Starting database seeding...\n')
 
   // ============================================================================
-  // 1. CATEGORIES (8 Major Exam Categories)
+  // 1. COURSES (Main Exam Courses)
   // ============================================================================
-  console.log('📚 Creating Categories...')
+  console.log('📚 Creating Courses...')
   
-  const categories = await Promise.all([
-    prisma.category.create({
+  const courses = await Promise.all([
+    prisma.course.create({
       data: {
-        name: 'SSC (Staff Selection Commission)',
+        title: 'SSC (Staff Selection Commission)',
         slug: 'ssc',
         description: 'SSC CGL, CHSL, MTS, CPO, GD Constable and other SSC exams',
         icon: 'Building2',
+        order: 1,
+        isFree: true,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'Banking & Insurance',
+        slug: 'banking',
+        description: 'IBPS PO, Clerk, SBI PO, RBI Grade B, NABARD, IRDAI exams',
+        icon: 'Landmark',
+        order: 2,
+        isFree: true,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'Railways',
+        slug: 'railways',
+        description: 'RRB NTPC, Group D, ALP, RPF, TC and other Railway exams',
+        icon: 'Train',
+        order: 3,
+        isFree: true,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'UPSC',
+        slug: 'upsc',
+        description: 'Civil Services, IAS, IPS, IFS, CDS, CAPF and other UPSC exams',
+        icon: 'Flag',
+        order: 4,
+        isFree: false,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'State PSC',
+        slug: 'state-psc',
+        description: 'State Public Service Commission exams across India',
+        icon: 'MapPin',
+        order: 5,
+        isFree: true,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'Teaching Exams',
+        slug: 'teaching',
+        description: 'CTET, TET, DSSSB, KVS, NVS and other teaching exams',
+        icon: 'GraduationCap',
+        order: 6,
+        isFree: true,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'Defence & Police',
+        slug: 'defence',
+        description: 'NDA, CDS, AFCAT, Indian Army, Navy, Air Force and Police exams',
+        icon: 'Shield',
+        order: 7,
+        isFree: true,
+      },
+    }),
+    prisma.course.create({
+      data: {
+        title: 'Other Exams',
+        slug: 'other',
+        description: 'LIC, NIACL, FCI, GATE, UGC NET and other competitive exams',
+        icon: 'BookOpen',
+        order: 8,
+        isFree: true,
+      },
+    }),
+  ])
+
+  console.log(`✅ Created ${courses.length} courses\n`)
+
+  // ============================================================================
+  // 2. CATEGORIES (Under Courses)
+  // ============================================================================
+  console.log('📖 Creating Categories...')
+
+  const categories = await Promise.all([
+    // SSC Categories
+    prisma.category.create({
+      data: {
+        courseId: courses[0].id,
+        name: 'SSC CGL',
+        slug: 'ssc-cgl',
+        description: 'Combined Graduate Level Examination',
         order: 1,
       },
     }),
     prisma.category.create({
       data: {
-        name: 'Banking & Insurance',
-        slug: 'banking',
-        description: 'IBPS PO, Clerk, SBI PO, RBI Grade B, NABARD, IRDAI exams',
-        icon: 'Landmark',
+        courseId: courses[0].id,
+        name: 'SSC CHSL',
+        slug: 'ssc-chsl',
+        description: 'Combined Higher Secondary Level',
         order: 2,
       },
     }),
+    // Banking Categories
     prisma.category.create({
       data: {
-        name: 'Railways',
-        slug: 'railways',
-        description: 'RRB NTPC, Group D, ALP, RPF, TC and other Railway exams',
-        icon: 'Train',
-        order: 3,
+        courseId: courses[1].id,
+        name: 'IBPS PO',
+        slug: 'ibps-po',
+        description: 'Probationary Officer Exam',
+        order: 1,
       },
     }),
     prisma.category.create({
       data: {
-        name: 'UPSC',
-        slug: 'upsc',
-        description: 'Civil Services, IAS, IPS, IFS, CDS, CAPF and other UPSC exams',
-        icon: 'Flag',
-        order: 4,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'State PSC',
-        slug: 'state-psc',
-        description: 'State Public Service Commission exams across India',
-        icon: 'MapPin',
-        order: 5,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Teaching Exams',
-        slug: 'teaching',
-        description: 'CTET, TET, DSSSB, KVS, NVS and other teaching exams',
-        icon: 'GraduationCap',
-        order: 6,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Defence & Police',
-        slug: 'defence',
-        description: 'NDA, CDS, AFCAT, Indian Army, Navy, Air Force and Police exams',
-        icon: 'Shield',
-        order: 7,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Other Exams',
-        slug: 'other',
-        description: 'LIC, NIACL, FCI, GATE, UGC NET and other competitive exams',
-        icon: 'BookOpen',
-        order: 8,
+        courseId: courses[1].id,
+        name: 'SBI Clerk',
+        slug: 'sbi-clerk',
+        description: 'State Bank of India Clerk',
+        order: 2,
       },
     }),
   ])
@@ -88,13 +144,13 @@ async function main() {
   console.log(`✅ Created ${categories.length} categories\n`)
 
   // ============================================================================
-  // 2. SUBJECTS (30+ Subjects across categories)
+  // 3. SUBJECTS (Under Categories)
   // ============================================================================
-  console.log('📖 Creating Subjects...')
+  console.log('📚 Creating Subjects...')
 
   const subjects: any[] = []
 
-  // SSC Subjects
+  // SSC CGL Subjects
   const sscSubjects = await Promise.all([
     prisma.subject.create({
       data: { categoryId: categories[0].id, name: 'Quantitative Aptitude', slug: 'quantitative-aptitude', order: 1 },
@@ -110,94 +166,6 @@ async function main() {
     }),
   ])
   subjects.push(...sscSubjects)
-
-  // Banking Subjects
-  const bankingSubjects = await Promise.all([
-    prisma.subject.create({
-      data: { categoryId: categories[1].id, name: 'Quantitative Aptitude', slug: 'quantitative-aptitude', order: 1 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[1].id, name: 'Reasoning Ability', slug: 'reasoning', order: 2 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[1].id, name: 'English Language', slug: 'english', order: 3 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[1].id, name: 'Banking Awareness', slug: 'banking-awareness', order: 4 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[1].id, name: 'Computer Knowledge', slug: 'computer', order: 5 },
-    }),
-  ])
-  subjects.push(...bankingSubjects)
-
-  // Railways Subjects
-  const railwaySubjects = await Promise.all([
-    prisma.subject.create({
-      data: { categoryId: categories[2].id, name: 'Mathematics', slug: 'mathematics', order: 1 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[2].id, name: 'General Intelligence', slug: 'reasoning', order: 2 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[2].id, name: 'General Awareness', slug: 'general-awareness', order: 3 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[2].id, name: 'General Science', slug: 'general-science', order: 4 },
-    }),
-  ])
-  subjects.push(...railwaySubjects)
-
-  // UPSC Subjects
-  const upscSubjects = await Promise.all([
-    prisma.subject.create({
-      data: { categoryId: categories[3].id, name: 'General Studies - I', slug: 'gs-1', order: 1 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[3].id, name: 'General Studies - II (CSAT)', slug: 'csat', order: 2 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[3].id, name: 'Essay Writing', slug: 'essay', order: 3 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[3].id, name: 'Current Affairs', slug: 'current-affairs', order: 4 },
-    }),
-  ])
-  subjects.push(...upscSubjects)
-
-  // Teaching Subjects
-  const teachingSubjects = await Promise.all([
-    prisma.subject.create({
-      data: { categoryId: categories[5].id, name: 'Child Development & Pedagogy', slug: 'cdp', order: 1 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[5].id, name: 'Mathematics & Science', slug: 'maths-science', order: 2 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[5].id, name: 'Social Studies', slug: 'social-studies', order: 3 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[5].id, name: 'Language - English', slug: 'english', order: 4 },
-    }),
-  ])
-  subjects.push(...teachingSubjects)
-
-  // Defence Subjects
-  const defenceSubjects = await Promise.all([
-    prisma.subject.create({
-      data: { categoryId: categories[6].id, name: 'Mathematics', slug: 'mathematics', order: 1 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[6].id, name: 'General Knowledge', slug: 'general-knowledge', order: 2 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[6].id, name: 'English', slug: 'english', order: 3 },
-    }),
-    prisma.subject.create({
-      data: { categoryId: categories[6].id, name: 'Physics & Chemistry', slug: 'physics-chemistry', order: 4 },
-    }),
-  ])
-  subjects.push(...defenceSubjects)
 
   console.log(`✅ Created ${subjects.length} subjects\n`)
 
@@ -987,298 +955,19 @@ async function main() {
   console.log(`✅ Created ${badges.length} badges\n`)
 
   // ============================================================================
-  // EXAM CATEGORIES, EXAMS & TEST SERIES
-  // ============================================================================
-  console.log('🎓 Creating Exam Categories & Exams...')
-
-  const examCategories = await Promise.all([
-    prisma.examCategory.create({
-      data: {
-        name: 'Engineering',
-        slug: 'engineering',
-        description: 'JEE, GATE, ISRO, BARC and other engineering exams',
-        icon: 'Cpu',
-        order: 1,
-      },
-    }),
-    prisma.examCategory.create({
-      data: {
-        name: 'Medical',
-        slug: 'medical',
-        description: 'NEET, AIIMS, JIPMER and other medical entrance exams',
-        icon: 'Stethoscope',
-        order: 2,
-      },
-    }),
-    prisma.examCategory.create({
-      data: {
-        name: 'Government Jobs',
-        slug: 'government',
-        description: 'SSC, Banking, Railways, UPSC and other govt exams',
-        icon: 'Building',
-        order: 3,
-      },
-    }),
-  ])
-
-  console.log(`✅ Created ${examCategories.length} exam categories\n`)
-
-  // Create Exams
-  console.log('📝 Creating Exams...')
-
-  const exams = await Promise.all([
-    prisma.exam.create({
-      data: {
-        categoryId: examCategories[0].id, // Engineering
-        name: 'JEE Main',
-        slug: 'jee-main',
-        description: 'Joint Entrance Examination for engineering admissions',
-        pattern: {
-          totalMarks: 300,
-          duration: 180,
-          sections: ['Physics', 'Chemistry', 'Mathematics'],
-        },
-        totalMarks: 300,
-        duration: 180,
-        order: 1,
-      },
-    }),
-    prisma.exam.create({
-      data: {
-        categoryId: examCategories[0].id, // Engineering
-        name: 'JEE Advanced',
-        slug: 'jee-advanced',
-        description: 'Advanced level exam for IIT admissions',
-        pattern: {
-          totalMarks: 360,
-          duration: 360,
-          sections: ['Physics', 'Chemistry', 'Mathematics'],
-        },
-        totalMarks: 360,
-        duration: 360,
-        order: 2,
-      },
-    }),
-    prisma.exam.create({
-      data: {
-        categoryId: examCategories[1].id, // Medical
-        name: 'NEET UG',
-        slug: 'neet-ug',
-        description: 'National Eligibility cum Entrance Test for medical admissions',
-        pattern: {
-          totalMarks: 720,
-          duration: 200,
-          sections: ['Physics', 'Chemistry', 'Biology'],
-        },
-        totalMarks: 720,
-        duration: 200,
-        order: 1,
-      },
-    }),
-    prisma.exam.create({
-      data: {
-        categoryId: examCategories[2].id, // Government
-        name: 'SSC CGL',
-        slug: 'ssc-cgl',
-        description: 'Staff Selection Commission Combined Graduate Level',
-        pattern: {
-          totalMarks: 200,
-          duration: 60,
-          sections: ['Reasoning', 'Quantitative Aptitude', 'English', 'General Awareness'],
-        },
-        totalMarks: 200,
-        duration: 60,
-        order: 1,
-      },
-    }),
-  ])
-
-  console.log(`✅ Created ${exams.length} exams\n`)
-
-  // Create Test Series
-  console.log('📚 Creating Test Series...')
-
-  const testSeries = await Promise.all([
-    prisma.testSeries.create({
-      data: {
-        examId: exams[0].id, // JEE Main
-        title: 'JEE Main 2024 Complete Test Series',
-        slug: 'jee-main-2024-complete',
-        description: 'Comprehensive test series for JEE Main 2024 with 40 full-length mocks and topic-wise tests',
-        thumbnail: '/images/test-series/jee-main.jpg',
-        price: 2999,
-        discountPrice: 1999,
-        isPremium: true,
-        isFree: false,
-        validityDays: 365,
-        totalTests: 40,
-        totalQuestions: 3000,
-        features: [
-          'Full-length mock tests',
-          'Topic-wise practice tests',
-          'Detailed solutions',
-          'Performance analytics',
-          'All India rank',
-          'Video solutions for difficult questions',
-        ],
-        order: 1,
-        publishedAt: new Date(),
-      },
-    }),
-    prisma.testSeries.create({
-      data: {
-        examId: exams[0].id, // JEE Main
-        title: 'JEE Main Physics Mastery',
-        slug: 'jee-main-physics-mastery',
-        description: 'Topic-wise Physics test series covering all JEE Main chapters',
-        thumbnail: '/images/test-series/jee-physics.jpg',
-        price: 999,
-        discountPrice: 699,
-        isPremium: true,
-        isFree: false,
-        validityDays: 180,
-        totalTests: 15,
-        totalQuestions: 750,
-        features: [
-          '15 chapter-wise tests',
-          'Detailed solutions',
-          'Performance tracking',
-          'Concept videos',
-        ],
-        order: 2,
-        publishedAt: new Date(),
-      },
-    }),
-    prisma.testSeries.create({
-      data: {
-        examId: exams[2].id, // NEET UG
-        title: 'NEET 2024 Grand Test Series',
-        slug: 'neet-2024-grand',
-        description: 'Complete NEET preparation with 50+ tests and detailed analysis',
-        thumbnail: '/images/test-series/neet-grand.jpg',
-        price: 3499,
-        discountPrice: 2499,
-        isPremium: true,
-        isFree: false,
-        validityDays: 365,
-        totalTests: 50,
-        totalQuestions: 9000,
-        features: [
-          '50 full-length tests',
-          'Previous year analysis',
-          'NCERT based questions',
-          'Detailed explanations',
-          'All India rank',
-          'Mobile app access',
-        ],
-        order: 1,
-        publishedAt: new Date(),
-      },
-    }),
-    prisma.testSeries.create({
-      data: {
-        examId: exams[3].id, // SSC CGL
-        title: 'SSC CGL Tier 1 Free Test Series',
-        slug: 'ssc-cgl-tier1-free',
-        description: 'Free test series for SSC CGL Tier 1 preparation',
-        thumbnail: '/images/test-series/ssc-cgl-free.jpg',
-        price: 0,
-        discountPrice: null,
-        isPremium: false,
-        isFree: true,
-        validityDays: 180,
-        totalTests: 10,
-        totalQuestions: 1000,
-        features: [
-          '10 full-length tests',
-          'Detailed solutions',
-          'Performance analysis',
-          'Free forever',
-        ],
-        order: 1,
-        publishedAt: new Date(),
-      },
-    }),
-  ])
-
-  console.log(`✅ Created ${testSeries.length} test series\n`)
-
-  // Create PYQ Collections
-  console.log('📖 Creating PYQ Collections...')
-
-  const pyqCollections = await Promise.all([
-    prisma.pYQCollection.create({
-      data: {
-        examId: exams[0].id, // JEE Main
-        title: 'JEE Main PYQ (2015-2024)',
-        slug: 'jee-main-pyq-2015-2024',
-        description: 'Previous 10 years JEE Main question papers with detailed solutions',
-        thumbnail: '/images/pyq/jee-main-pyq.jpg',
-        startYear: 2015,
-        endYear: 2024,
-        price: 999,
-        isPremium: true,
-        isFree: false,
-        totalPapers: 20,
-        totalQuestions: 1500,
-        order: 1,
-      },
-    }),
-    prisma.pYQCollection.create({
-      data: {
-        examId: exams[2].id, // NEET UG
-        title: 'NEET PYQ (2018-2024)',
-        slug: 'neet-pyq-2018-2024',
-        description: 'Last 7 years NEET question papers with solutions',
-        thumbnail: '/images/pyq/neet-pyq.jpg',
-        startYear: 2018,
-        endYear: 2024,
-        price: 799,
-        isPremium: true,
-        isFree: false,
-        totalPapers: 7,
-        totalQuestions: 1260,
-        order: 1,
-      },
-    }),
-    prisma.pYQCollection.create({
-      data: {
-        examId: exams[3].id, // SSC CGL
-        title: 'SSC CGL PYQ (2019-2023)',
-        slug: 'ssc-cgl-pyq-2019-2023',
-        description: 'SSC CGL previous year questions - Free',
-        thumbnail: '/images/pyq/ssc-pyq.jpg',
-        startYear: 2019,
-        endYear: 2023,
-        price: 0,
-        isPremium: false,
-        isFree: true,
-        totalPapers: 10,
-        totalQuestions: 1000,
-        order: 1,
-      },
-    }),
-  ])
-
-  console.log(`✅ Created ${pyqCollections.length} PYQ collections\n`)
-
-  // ============================================================================
   // SUMMARY
   // ============================================================================
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('✅ DATABASE SEEDING COMPLETED!')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log(`📊 Summary:`)
+  console.log(`   • ${courses.length} Courses`)
   console.log(`   • ${categories.length} Categories`)
   console.log(`   • ${subjects.length} Subjects`)
   console.log(`   • ${topics.length} Topics`)
   console.log(`   • ${questions.length} Questions`)
   console.log(`   • ${tests.length} Tests`)
   console.log(`   • ${badges.length} Badges`)
-  console.log(`   • ${examCategories.length} Exam Categories`)
-  console.log(`   • ${exams.length} Exams`)
-  console.log(`   • ${testSeries.length} Test Series`)
-  console.log(`   • ${pyqCollections.length} PYQ Collections`)
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
 }
 
