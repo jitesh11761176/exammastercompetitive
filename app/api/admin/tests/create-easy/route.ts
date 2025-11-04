@@ -21,9 +21,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find or create a default category
+    // Find or create a default course
+    let course = await prisma.course.findFirst({
+      where: { slug: 'quick-tests' }
+    })
+
+    if (!course) {
+      course = await prisma.course.create({
+        data: {
+          title: 'Quick Tests',
+          slug: 'quick-tests',
+          description: 'Quick practice tests created via easy creation',
+          isActive: true,
+          isFree: true,
+          order: 995
+        }
+      })
+    }
+
+    // Find or create a default category under the course
     let category = await prisma.category.findFirst({
-      where: { slug: 'general' }
+      where: { 
+        slug: 'general',
+        courseId: course.id 
+      }
     })
 
     if (!category) {
@@ -32,7 +53,8 @@ export async function POST(request: NextRequest) {
           name: 'General',
           slug: 'general',
           description: 'General category for tests',
-          isActive: true
+          isActive: true,
+          courseId: course.id
         }
       })
     }
