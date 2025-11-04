@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const body = await req.json()
-    const { topic, examType, difficulty, numQuestions, categoryId } = body
+  const body = await req.json()
+  const { topic, examType, difficulty, numQuestions, categoryId, courseId, examId } = body
 
     if (!topic || !numQuestions) {
       return NextResponse.json(
@@ -27,21 +27,60 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get or create category
-    let category = categoryId
-      ? await prisma.category.findUnique({ where: { id: categoryId } })
-      : null
+    // Helper to slugify
+    const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
 
+    // Try to resolve Exam from courseId or examId (for proper placement)
+    let resolvedExam: any = null
+    if (courseId) {
+      const course = await prisma.course.findUnique({ where: { id: courseId } })
+      if (course?.examId) {
+        resolvedExam = await prisma.exam.findUnique({ where: { id: course.examId } })
+      }
+    }
+    if (!resolvedExam && examId) {
+      resolvedExam = await prisma.exam.findUnique({ where: { id: examId } })
+    }
+
+    // Get or create category (prefer mapping to Exam name when available)
+    let category = categoryId ? await prisma.category.findUnique({ where: { id: categoryId } }) : null
     if (!category) {
-      // Create a default category based on topic
-      category = await prisma.category.create({
-        data: {
-          name: examType || topic,
-          slug: (examType || topic).toLowerCase().replace(/\s+/g, '-'),
-          description: `Auto-generated category for ${topic}`,
-          isActive: true,
-        },
-      })
+      const preferredCategoryName = resolvedExam?.name || examType || topic
+      const preferredSlug = slugify(preferredCategoryName)
+      category = await prisma.category.findFirst({ where: { slug: preferredSlug } })
+      if (!category) {
+        category = await prisma.category.create({
+          data: {
+            name: preferredCategoryName,
+            slug: preferredSlug,
+            description: `Auto-generated category for ${topic}`,
+            isActive: true,
+          },
+        })
+      }
+    }
+
+    // Optionally resolve/create a Test Series under the Exam (if available)
+    let seriesId: string | undefined
+    if (resolvedExam) {
+      const seriesTitle = `${topic} Practice` 
+      const seriesSlug = slugify(seriesTitle)
+      let series = await prisma.testSeries.findFirst({ where: { examId: resolvedExam.id, slug: seriesSlug } })
+      if (!series) {
+        series = await prisma.testSeries.create({
+          data: {
+            examId: resolvedExam.id,
+            title: seriesTitle,
+            slug: seriesSlug,
+            description: `Practice tests for ${resolvedExam.name} - ${topic}`,
+            isFree: true,
+            isPremium: false,
+            totalTests: 0,
+            totalQuestions: 0,
+          }
+        })
+      }
+      seriesId = series.id
     }
 
     // Create test
@@ -58,6 +97,7 @@ export async function POST(req: NextRequest) {
         difficulty: difficulty?.toUpperCase() || 'MEDIUM',
         isActive: true,
         isFree: true,
+        ...(seriesId ? { seriesId } : {}),
       },
     })
 
@@ -91,14 +131,15 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      const topicName = q.topic || q.subject || topic
       let topicDb = await prisma.topic.findFirst({
-        where: { name: q.topic, subjectId: subject.id },
+        where: { name: topicName, subjectId: subject.id },
       });
       if (!topicDb) {
         topicDb = await prisma.topic.create({
           data: {
-            name: q.topic,
-            slug: q.topic.toLowerCase().replace(/\s+/g, '-'),
+            name: topicName,
+            slug: topicName.toLowerCase().replace(/\s+/g, '-'),
             subjectId: subject.id,
           },
         });
@@ -158,9 +199,11 @@ export async function POST(req: NextRequest) {
         id: test.id,
         title: test.title,
         questionsCount: questionIds.length,
+        categoryId: category.id,
+        seriesId: test.seriesId || null,
       },
       questionsGenerated: questions.length,
-      message: `Test created successfully. ${questions.length} questions generated and linked.`,
+      message: `Test created successfully. ${questions.length} questions generated and linked${resolvedExam ? ' under the proper exam series' : ''}.`,
     })
   } catch (error) {
     console.error('AI Test Generation Error:', error)

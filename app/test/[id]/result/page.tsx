@@ -82,7 +82,47 @@ export default function TestResultPage() {
   }
 
   const downloadPDF = () => {
-    toast.info('PDF download feature coming soon!')
+    (async () => {
+      try {
+        if (!result) {
+          toast.error('No result data to export')
+          return
+        }
+
+        const [{ pdf }, mod] = await Promise.all([
+          import('@react-pdf/renderer'),
+          import('@/components/pdf/ResultReport')
+        ])
+
+        const doc = mod.ResultReportDocument ? (
+          mod.ResultReportDocument({ result }) as any
+        ) : null
+
+        if (!doc) {
+          toast.error('Failed to build PDF document')
+          return
+        }
+
+        const blob = await pdf(doc).toBlob()
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        const safeTitle = (result?.test?.title || 'Result')
+          .toString()
+          .replace(/[^a-z0-9\-_]+/gi, '_')
+          .replace(/_+/g, '_')
+          .slice(0, 80)
+        link.href = url
+        link.download = `${safeTitle}_Report.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        toast.success('PDF downloaded')
+      } catch (err) {
+        console.error('PDF generation failed:', err)
+        toast.error('Failed to generate PDF')
+      }
+    })()
   }
 
   if (loading) {
