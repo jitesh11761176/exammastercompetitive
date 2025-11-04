@@ -10,7 +10,8 @@ import {
   Settings,
   Sparkles,
   Key,
-  PlusCircle
+  PlusCircle,
+  FolderOpen
 } from 'lucide-react'
 
 export default async function AdminLayout({
@@ -27,6 +28,8 @@ export default async function AdminLayout({
     { name: 'AI Generator', href: '/admin/ai-assistant', icon: Wand2 },
     { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
     { name: 'Tests', href: '/admin/tests', icon: FileText },
+    { name: 'Exam Categories', href: '/admin/exam-categories', icon: FolderOpen },
+    { name: 'Question Categories', href: '/admin/categories', icon: BookOpen },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'API Keys', href: '/admin/api-keys', icon: Key },
