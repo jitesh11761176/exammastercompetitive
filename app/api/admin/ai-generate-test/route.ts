@@ -61,24 +61,14 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Generate questions with AI
-    const aiResponse = await generateQuestions(topic, numQuestions)
-    
-    let questions
-    try {
-      // Try to parse the AI response as JSON
-      questions = JSON.parse(aiResponse)
-      if (!Array.isArray(questions)) {
-        questions = [questions]
-      }
-    } catch (e) {
-      // If direct parse fails, try to extract JSON from the response
-      const jsonMatch = aiResponse.match(/\[[\s\S]*\]/)
-      if (jsonMatch) {
-        questions = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('Failed to parse AI response')
-      }
+    const questions = await generateQuestions(
+      topic,
+      numQuestions,
+      difficulty?.toUpperCase() || 'MEDIUM'
+    )
+
+    if (!Array.isArray(questions)) {
+      throw new Error('AI did not return a valid array of questions')
     }
 
     // For now, return success with test info
