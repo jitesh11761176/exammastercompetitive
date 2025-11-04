@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-// GET: Fetch all exams
+// GET: Fetch all categories (deprecated endpoint - use /api/admin/categories instead)
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -13,35 +13,48 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const exams = await prisma.exam.findMany({
+    // Return categories in old exam format for backward compatibility
+    const categories = await prisma.category.findMany({
       where: { isActive: true },
       select: {
         id: true,
         name: true,
         slug: true,
         description: true,
-        categoryId: true,
-        category: {
+        courseId: true,
+        course: {
           select: {
             id: true,
-            name: true,
+            title: true,
           },
         },
       },
       orderBy: [
-        { order: 'asc' },
         { name: 'asc' },
       ],
     })
 
+    // Map to old exam format for compatibility
+    const exams = categories.map((category: any) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      categoryId: category.courseId, // Map courseId to categoryId for old API
+      category: {
+        id: category.course.id,
+        name: category.course.title,
+      },
+    }))
+
     return NextResponse.json({ exams })
   } catch (error) {
-    console.error('Error fetching exams:', error)
-    return NextResponse.json({ error: 'Failed to fetch exams' }, { status: 500 })
+    console.error('Error fetching categories:', error)
+    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })
   }
 }
 
-// POST: Create a new exam
+// POST: Create a new category (deprecated endpoint - use /api/admin/categories instead)
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -57,9 +70,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { name, description, categoryId } = body
 
-    if (!name || !categoryId) {
+    // In the old API, categoryId meant the parent ExamCategory
+    // In the new API, this should be courseId (the parent Course)
+    const courseId = categoryId
+
+    if (!name || !courseId) {
       return NextResponse.json(
-        { error: 'Name and category are required' },
+        { error: 'Name and course are required' },
         { status: 400 }
       )
     }
@@ -72,43 +89,56 @@ export async function POST(req: NextRequest) {
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
 
-    // Check if exam with this slug already exists in the category
-    const existing = await prisma.exam.findFirst({
+    // Check if category with this slug already exists in the course
+    const existing = await prisma.category.findFirst({
       where: {
-        categoryId,
+        courseId,
         slug,
       },
     })
 
     if (existing) {
       return NextResponse.json(
-        { error: 'An exam with this name already exists in this category' },
+        { error: 'A category with this name already exists in this course' },
         { status: 409 }
       )
     }
 
-    // Create the exam
-    const exam = await prisma.exam.create({
+    // Create the category
+    const category = await prisma.category.create({
       data: {
         name,
         slug,
         description: description || null,
-        categoryId,
+        courseId,
         isActive: true,
       },
       include: {
-        category: {
+        course: {
           select: {
             id: true,
-            name: true,
+            title: true,
           },
         },
       },
     })
 
+    // Return in old exam format for compatibility
+    const exam = {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      categoryId: category.courseId,
+      category: {
+        id: category.course.id,
+        name: category.course.title,
+      },
+    }
+
     return NextResponse.json({ exam }, { status: 201 })
   } catch (error) {
-    console.error('Error creating exam:', error)
-    return NextResponse.json({ error: 'Failed to create exam' }, { status: 500 })
+    console.error('Error creating category:', error)
+    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 })
   }
 }
