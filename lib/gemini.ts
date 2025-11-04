@@ -42,12 +42,16 @@ export async function generateQuestions(
 Format each question as a JSON object with the following structure:
 {
   "questionText": "The question text",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correctAnswer": "Option A",
+  "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+  "correctAnswer": "The full text of the correct answer from the options array",
+  "correctOption": "A",
   "explanation": "Why this answer is correct",
   "subject": "${topic}",
   "difficulty": "${difficulty}"
 }
+
+For the "correctOption" field, return the letter corresponding to the correct answer (A, B, C, or D).
+For the "correctAnswer" field, return the full text of the correct answer.
 
 Return ONLY a valid JSON array of ${count} questions, nothing else.`
 
