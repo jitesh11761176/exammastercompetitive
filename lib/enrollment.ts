@@ -1,64 +1,38 @@
 import { prisma } from './prisma'
 
+// NOTE: This module has been migrated from TestSeries-based enrollments to Course enrollments.
+// The second argument (seriesId) is now treated as courseId for backward compatibility.
+
 export async function createEnrollment(
   userId: string,
-  seriesId: string,
-  paymentId?: string
+  seriesId: string, // Interpreted as courseId in the new model
+  _paymentId?: string
 ) {
-  const testSeries = await prisma.testSeries.findUnique({
-    where: { id: seriesId },
-  })
-
-  if (!testSeries) {
-    throw new Error('Test series not found')
+  // Validate course
+  const course = await prisma.course.findUnique({ where: { id: seriesId } })
+  if (!course) {
+    throw new Error('Course not found')
   }
 
-  // Check existing enrollment
-  const existing = await prisma.enrollment.findUnique({
+  // Upsert course enrollment (unique on userId+courseId)
+  const enrollment = await prisma.courseEnrollment.upsert({
     where: {
-      userId_seriesId: {
-        userId,
-        seriesId,
-      },
+      userId_courseId: { userId, courseId: course.id },
     },
-  })
-
-  if (existing && existing.status === 'ACTIVE') {
-    throw new Error('Already enrolled')
-  }
-
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + testSeries.validityDays)
-
-  const enrollment = await prisma.enrollment.create({
-    data: {
-      userId,
-      seriesId,
+    update: {
       status: 'ACTIVE',
       enrolledAt: new Date(),
-      expiresAt,
-      paymentId,
-      amountPaid: testSeries.isFree
-        ? 0
-        : testSeries.discountPrice || testSeries.price,
+      lastAccessedAt: new Date(),
+    },
+    create: {
+      userId,
+      courseId: course.id,
+      status: 'ACTIVE',
+      enrolledAt: new Date(),
     },
     include: {
-      series: {
-        include: {
-          exam: {
-            include: {
-              category: true,
-            },
-          },
-        },
-      },
+      course: true,
     },
-  })
-
-  // Update enrolled count
-  await prisma.testSeries.update({
-    where: { id: seriesId },
-    data: { enrolledCount: { increment: 1 } },
   })
 
   return enrollment
@@ -66,27 +40,22 @@ export async function createEnrollment(
 
 export async function getUserEnrollments(userId: string, status?: string) {
   const where: any = { userId }
-  
-  if (status) {
-    where.status = status
-  }
+  if (status) where.status = status as any
 
-  const enrollments = await prisma.enrollment.findMany({
+  const enrollments = await prisma.courseEnrollment.findMany({
     where,
     include: {
-      series: {
+      course: {
         include: {
-          exam: {
-            include: {
-              category: true,
-            },
+          categories: {
+            where: { isActive: true },
+            select: { id: true, name: true, slug: true },
+            take: 5,
           },
         },
       },
     },
-    orderBy: {
-      enrolledAt: 'desc',
-    },
+    orderBy: { enrolledAt: 'desc' },
   })
 
   return enrollments
@@ -94,51 +63,36 @@ export async function getUserEnrollments(userId: string, status?: string) {
 
 export async function updateEnrollmentProgress(
   userId: string,
-  seriesId: string,
+  seriesId: string, // Interpreted as courseId
   testAttemptId: string
 ) {
   const attempt = await prisma.testAttempt.findUnique({
     where: { id: testAttemptId },
   })
+  if (!attempt || attempt.status !== 'COMPLETED') return
 
-  if (!attempt || attempt.status !== 'COMPLETED') {
-    return
-  }
-
-  const enrollment = await prisma.enrollment.findUnique({
-    where: {
-      userId_seriesId: {
-        userId,
-        seriesId,
-      },
-    },
+  const enrollment = await prisma.courseEnrollment.findUnique({
+    where: { userId_courseId: { userId, courseId: seriesId } },
   })
+  if (!enrollment) return
 
-  if (!enrollment) {
-    return
-  }
-
-  // Get all completed attempts for this series
+  // All completed attempts by this user for tests under this course
   const completedAttempts = await prisma.testAttempt.findMany({
     where: {
       userId,
-      test: {
-        seriesId,
-      },
       status: 'COMPLETED',
+      test: {
+        category: { courseId: seriesId },
+      },
     },
     distinct: ['testId'],
+    select: { score: true },
   })
 
-  const totalScore = completedAttempts.reduce(
-    (sum, att) => sum + att.score,
-    0
-  )
-  const avgScore = completedAttempts.length > 0
-    ? totalScore / completedAttempts.length
-    : 0
+  const totalScore = completedAttempts.reduce((sum: number, a: { score: number }) => sum + (a.score ?? 0), 0)
+  const avgScore = completedAttempts.length > 0 ? totalScore / completedAttempts.length : 0
 
-  await prisma.enrollment.update({
+  await prisma.courseEnrollment.update({
     where: { id: enrollment.id },
     data: {
       completedTests: completedAttempts.length,
@@ -150,31 +104,12 @@ export async function updateEnrollmentProgress(
 }
 
 export async function checkEnrollmentStatus(userId: string, seriesId: string) {
-  const enrollment = await prisma.enrollment.findUnique({
-    where: {
-      userId_seriesId: {
-        userId,
-        seriesId,
-      },
-    },
+  const enrollment = await prisma.courseEnrollment.findUnique({
+    where: { userId_courseId: { userId, courseId: seriesId } },
   })
 
   if (!enrollment) {
-    return { isEnrolled: false, status: null, enrollment: null }
-  }
-
-  // Check if expired
-  if (enrollment.status === 'ACTIVE' && enrollment.expiresAt < new Date()) {
-    await prisma.enrollment.update({
-      where: { id: enrollment.id },
-      data: { status: 'EXPIRED' },
-    })
-
-    return {
-      isEnrolled: false,
-      status: 'EXPIRED',
-      enrollment,
-    }
+    return { isEnrolled: false, status: null as any, enrollment: null as any }
   }
 
   return {
