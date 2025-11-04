@@ -15,6 +15,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'ExamMaster Pro',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg',

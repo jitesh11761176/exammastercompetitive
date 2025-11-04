@@ -63,7 +63,7 @@ export default function TestResultPage() {
   
 
   const shareResult = async () => {
-    const text = `I scored ${result.percentage.toFixed(1)}% on ${result.test.title}! 🎉`
+    const text = `I scored ${percentage.toFixed(1)}% on ${result.test.title}! 🎉`
     
     if (navigator.share) {
       try {
@@ -106,9 +106,15 @@ export default function TestResultPage() {
     )
   }
 
-  const accuracy = result.correctAnswers / (result.correctAnswers + result.wrongAnswers) * 100 || 0
-  const percentage = result.percentage || 0
-  const isPassed = percentage >= (result.test.passingScore || 33)
+  const score = Number(result.score ?? 0)
+  const totalMarks = Number(result.totalMarks ?? result.test?.totalMarks ?? 0)
+  const percentage = totalMarks > 0
+    ? (score / totalMarks) * 100
+    : Number(result.percentage ?? result.percentile ?? 0)
+  const attempted = Number(result.correctAnswers ?? 0) + Number(result.wrongAnswers ?? 0)
+  const accuracy = Number(result.accuracy ?? (attempted > 0 ? (Number(result.correctAnswers ?? 0) / attempted) * 100 : 0))
+  const passingMarks = Number(result.test?.passingMarks ?? Math.ceil((totalMarks || 0) * 0.33))
+  const isPassed = score >= passingMarks
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 dark:from-gray-950 dark:to-gray-900 p-4 md:p-8">
@@ -164,7 +170,7 @@ export default function TestResultPage() {
               </Badge>
               <Badge className="px-4 py-2 text-base bg-purple-100 text-purple-800">
                 <Award className="w-4 h-4 mr-2" />
-                +{result.pointsEarned} XP
+                +{Number(result.pointsEarned ?? 0)} XP
               </Badge>
             </div>
           </CardContent>
@@ -180,15 +186,15 @@ export default function TestResultPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Marks Obtained</span>
-                  <span className="font-semibold">{result.score.toFixed(2)}</span>
+                  <span className="font-semibold">{score.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total Marks</span>
-                  <span className="font-semibold">{result.totalMarks}</span>
+                  <span className="font-semibold">{totalMarks}</span>
                 </div>
-                <Progress value={result.percentage} className="h-2" />
+                <Progress value={percentage} className="h-2" />
                 <div className="text-center text-sm text-gray-500">
-                  {result.percentage.toFixed(1)}% of total
+                  {percentage.toFixed(1)}% of total
                 </div>
               </div>
             </CardContent>
@@ -203,7 +209,7 @@ export default function TestResultPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Attempted</span>
                   <span className="font-semibold">
-                    {result.correctAnswers + result.wrongAnswers}
+                    {attempted}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -227,7 +233,7 @@ export default function TestResultPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Time Taken</span>
                   <span className="font-semibold">
-                    {Math.floor(result.timeTaken / 60)} min
+                    {Math.floor(Number(result.timeTaken ?? 0) / 60)} min
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -235,11 +241,11 @@ export default function TestResultPage() {
                   <span className="font-semibold">{result.test.duration} min</span>
                 </div>
                 <Progress
-                  value={(result.timeTaken / (result.test.duration * 60)) * 100}
+                  value={(Number(result.timeTaken ?? 0) / (((result.test.duration || 0) * 60) || 1)) * 100}
                   className="h-2"
                 />
                 <div className="text-center text-sm text-gray-500">
-                  {((result.timeTaken / (result.test.duration * 60)) * 100).toFixed(1)}% used
+                  {((Number(result.timeTaken ?? 0) / (((result.test.duration || 0) * 60) || 1)) * 100).toFixed(1)}% used
                 </div>
               </div>
             </CardContent>
@@ -324,7 +330,7 @@ export default function TestResultPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm">
-              {result.percentage < 50 && (
+              {percentage < 50 && (
                 <li className="flex items-start gap-2">
                   <ChevronRight className="w-4 h-4 text-indigo-600 mt-0.5" />
                   <span>Focus on understanding basic concepts before attempting more tests.</span>
