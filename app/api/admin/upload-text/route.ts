@@ -164,15 +164,40 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Found ${parsedQuestions.length} questions`)
 
+    // Find or create a default course for text uploads
+    let defaultCourse = await prisma.course.findFirst({
+      where: { slug: 'text-uploads' }
+    })
+
+    if (!defaultCourse) {
+      defaultCourse = await prisma.course.create({
+        data: {
+          title: 'Text Uploads',
+          slug: 'text-uploads',
+          description: 'Questions uploaded via smart text parser',
+          isActive: true,
+          isFree: true,
+          order: 993
+        }
+      })
+      console.log(`✅ Created default course for text uploads`)
+    }
+
     // Create or get category
     const categorySlug = (categoryName || 'General').toLowerCase().replace(/\s+/g, '-')
     const category = await prisma.category.upsert({
-      where: { slug: categorySlug },
+      where: { 
+        courseId_slug: {
+          courseId: defaultCourse.id,
+          slug: categorySlug
+        }
+      },
       create: {
         name: categoryName || 'General',
         slug: categorySlug,
         description: `Uploaded via Smart Parser on ${new Date().toLocaleDateString()}`,
-        isActive: true
+        isActive: true,
+        courseId: defaultCourse.id
       },
       update: {}
     })
