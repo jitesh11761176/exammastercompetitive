@@ -14,34 +14,44 @@ export default async function ExamsPage() {
     redirect('/login')
   }
 
-  // Get user's interested categories with test counts and stats
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email! },
+  // Get all active exam categories with their exams and test series
+  const examCategories = await prisma.examCategory.findMany({
+    where: { isActive: true },
     include: {
-      interestedCategories: {
+      exams: {
+        where: { isActive: true },
         include: {
-          category: {
+          testSeries: {
             include: {
               tests: {
                 where: { isActive: true },
-                include: {
-                  _count: {
-                    select: { attempts: true }
-                  }
+                select: {
+                  id: true,
+                  title: true,
+                  seriesId: true
                 }
               }
             }
           }
         }
-      },
+      }
+    },
+    orderBy: { order: 'asc' }
+  })
+
+  // Get user with test attempts
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email! },
+    include: {
       testAttempts: {
-        include: {
-          test: {
-            select: {
-              categoryId: true
-            }
-          }
-        }
+        where: { status: 'COMPLETED' },
+        select: {
+          id: true,
+          testId: true,
+          accuracy: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
       }
     }
   })
@@ -50,131 +60,134 @@ export default async function ExamsPage() {
     redirect('/login')
   }
 
-  // Check if user needs onboarding
-  const needsOnboarding = !user.interestedCategories || user.interestedCategories.length === 0
-
-  if (needsOnboarding) {
-    redirect('/onboarding')
-  }
-
-  // Calculate stats per category
-  const categoryStats = user.interestedCategories.map((ic: any) => {
-    const category = ic.category
-    const totalTests = category.tests.length
-    const completedTests = user.testAttempts.filter(
-      (attempt: any) => attempt.test.categoryId === category.id && attempt.status === 'COMPLETED'
+  // Calculate stats for each exam category
+  const categoryStats = examCategories.map(examCategory => {
+    // Get all test IDs under this exam category
+    const allTestIds = examCategory.exams.flatMap(exam => 
+      exam.testSeries.flatMap(series => series.tests.map(test => test.id))
+    )
+    
+    const totalTests = allTestIds.length
+    
+    const completedTests = user.testAttempts.filter(attempt => 
+      allTestIds.includes(attempt.testId)
     ).length
-    const avgScore = user.testAttempts
-      .filter((attempt: any) => attempt.test.categoryId === category.id && attempt.status === 'COMPLETED')
-      .reduce((acc: number, attempt: any) => acc + (attempt.accuracy || 0), 0) / (completedTests || 1)
+    
+    const avgScore = completedTests > 0
+      ? user.testAttempts
+          .filter(attempt => allTestIds.includes(attempt.testId))
+          .reduce((acc, attempt) => acc + (attempt.accuracy || 0), 0) / completedTests
+      : 0
 
-    const recentAttempt = user.testAttempts
-      .filter((attempt: any) => attempt.test.categoryId === category.id)
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+    const recentAttempt = user.testAttempts.find(attempt =>
+      allTestIds.includes(attempt.testId)
+    )
 
     return {
-      category,
+      examCategory,
       totalTests,
       completedTests,
-      avgScore: completedTests > 0 ? avgScore : 0,
-      recentAttempt
+      avgScore,
+      recentAttempt,
+      totalExams: examCategory.exams.length
     }
-  })
+  }).filter(stat => stat.totalTests > 0) // Only show categories with tests
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Exam Categories</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Exam Categories</h1>
           <p className="text-gray-600 mt-2">
-            Select an exam to view all available tests and track your progress
+            Browse exam categories and take tests to prepare for your competitive exams
           </p>
         </div>
-        <Link href="/onboarding">
-          <Button variant="outline">Manage Categories</Button>
-        </Link>
       </div>
 
       {/* Category Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categoryStats.map(({ category, totalTests, completedTests, avgScore, recentAttempt }: any) => (
-          <Link key={category.id} href={`/exams/${category.id}`}>
-            <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer h-full">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">{category.name}</CardTitle>
-                    <CardDescription className="line-clamp-2">
-                      {category.description || 'Prepare for this competitive exam'}
-                    </CardDescription>
-                  </div>
-                  <BookOpen className="w-8 h-8 text-primary opacity-80" />
+        {categoryStats.map(({ examCategory, totalTests, completedTests, avgScore, recentAttempt, totalExams }) => (
+          <Card key={examCategory.id} className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-xl mb-2">{examCategory.name}</CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {examCategory.description || 'Prepare for competitive exams in this category'}
+                  </CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <div className="flex items-center text-blue-600 mb-1">
-                      <FileText className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Tests</span>
-                    </div>
-                    <div className="text-2xl font-bold text-blue-900">{totalTests}</div>
+                <BookOpen className="w-8 h-8 text-primary opacity-80" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="flex items-center text-blue-600 mb-1">
+                    <FileText className="w-4 h-4 mr-1" />
+                    <span className="text-xs font-medium">Total Tests</span>
                   </div>
-                  
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <div className="flex items-center text-green-600 mb-1">
-                      <TrendingUp className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Completed</span>
-                    </div>
-                    <div className="text-2xl font-bold text-green-900">{completedTests}</div>
-                  </div>
+                  <div className="text-2xl font-bold text-blue-900">{totalTests}</div>
+                  <div className="text-xs text-blue-600 mt-1">{totalExams} exam{totalExams !== 1 ? 's' : ''}</div>
                 </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Progress</span>
-                    <span className="font-medium text-gray-900">
-                      {totalTests > 0 ? ((completedTests / totalTests) * 100).toFixed(0) : 0}%
-                    </span>
+                
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="flex items-center text-green-600 mb-1">
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                    <span className="text-xs font-medium">Completed</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary rounded-full h-2 transition-all"
-                      style={{ 
-                        width: `${totalTests > 0 ? (completedTests / totalTests) * 100 : 0}%` 
-                      }}
-                    />
+                  <div className="text-2xl font-bold text-green-900">{completedTests}</div>
+                  <div className="text-xs text-green-600 mt-1">
+                    {totalTests > 0 ? ((completedTests / totalTests) * 100).toFixed(0) : 0}% progress
                   </div>
                 </div>
+              </div>
 
-                {/* Average Score */}
-                {completedTests > 0 && (
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-sm text-gray-600">Avg. Score</span>
-                    <span className="text-lg font-bold text-primary">
-                      {avgScore.toFixed(1)}%
-                    </span>
-                  </div>
-                )}
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Progress</span>
+                  <span className="font-medium text-gray-900">
+                    {totalTests > 0 ? ((completedTests / totalTests) * 100).toFixed(0) : 0}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-primary rounded-full h-2 transition-all"
+                    style={{ 
+                      width: `${totalTests > 0 ? (completedTests / totalTests) * 100 : 0}%` 
+                    }}
+                  />
+                </div>
+              </div>
 
-                {/* Recent Activity */}
-                {recentAttempt && (
-                  <div className="flex items-center text-xs text-gray-500 pt-2 border-t">
-                    <Clock className="w-3 h-3 mr-1" />
-                    Last attempt: {new Date(recentAttempt.createdAt).toLocaleDateString()}
-                  </div>
-                )}
+              {/* Average Score */}
+              {completedTests > 0 && (
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm text-gray-600">Avg. Score</span>
+                  <span className="text-lg font-bold text-primary">
+                    {avgScore.toFixed(1)}%
+                  </span>
+                </div>
+              )}
 
-                {/* Call to Action */}
+              {/* Recent Activity */}
+              {recentAttempt && (
+                <div className="flex items-center text-xs text-gray-500 pt-2 border-t">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Last attempt: {new Date(recentAttempt.createdAt).toLocaleDateString()}
+                </div>
+              )}
+
+              {/* View Exams Button */}
+              <Link href={`/exams/category/${examCategory.id}`}>
                 <Button className="w-full mt-4" size="sm">
-                  View All Tests
+                  View {totalExams} Exam{totalExams !== 1 ? 's' : ''}
                 </Button>
-              </CardContent>
-            </Card>
-          </Link>
+              </Link>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
@@ -183,13 +196,10 @@ export default async function ExamsPage() {
         <Card>
           <CardContent className="text-center py-12">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Exam Categories Selected</h3>
+            <h3 className="text-lg font-semibold mb-2">No Tests Available Yet</h3>
             <p className="text-gray-600 mb-4">
-              Start by selecting the exams you&apos;re preparing for
+              Tests will be added soon. Check back later!
             </p>
-            <Link href="/onboarding">
-              <Button>Select Exam Categories</Button>
-            </Link>
           </CardContent>
         </Card>
       )}
