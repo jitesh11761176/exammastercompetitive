@@ -75,16 +75,70 @@ export async function POST(req: NextRequest) {
     // Questions will be added manually or through a different flow
     // TODO: Implement proper topic/subject hierarchy for question creation
     
+    const questionIds = [];
+
+    for (const q of questions) {
+      let subject = await prisma.subject.findFirst({
+        where: { name: q.subject, categoryId: category.id },
+      });
+      if (!subject) {
+        subject = await prisma.subject.create({
+          data: {
+            name: q.subject,
+            slug: q.subject.toLowerCase().replace(/\s+/g, '-'),
+            categoryId: category.id,
+          },
+        });
+      }
+
+      let topicDb = await prisma.topic.findFirst({
+        where: { name: q.topic, subjectId: subject.id },
+      });
+      if (!topicDb) {
+        topicDb = await prisma.topic.create({
+          data: {
+            name: q.topic,
+            slug: q.topic.toLowerCase().replace(/\s+/g, '-'),
+            subjectId: subject.id,
+          },
+        });
+      }
+
+      const newQuestion = await prisma.question.create({
+        data: {
+          questionText: q.questionText,
+          questionType: 'MCQ',
+          difficulty: q.difficulty,
+          marks: 1,
+          negativeMarks: 0.25,
+          explanation: q.explanation,
+          optionA: q.options[0],
+          optionB: q.options[1],
+          optionC: q.options[2],
+          optionD: q.options[3],
+          correctOption: ['A', 'B', 'C', 'D'][q.options.indexOf(q.correctAnswer)],
+          topicId: topicDb.id,
+          isVerified: true,
+          moderationStatus: 'APPROVED',
+        },
+      });
+      questionIds.push(newQuestion.id);
+    }
+
+    await prisma.test.update({
+      where: { id: test.id },
+      data: { questionIds: questionIds },
+    });
+    
     return NextResponse.json({
       success: true,
       test: {
         id: test.id,
         title: test.title,
-        questionsCount: 0, // Questions not yet linked
+        questionsCount: questionIds.length,
       },
       questionsGenerated: questions.length,
-      message: `Test created successfully. ${questions.length} questions generated but need to be linked through proper topic hierarchy.`,
-      note: 'Please use the test editor to add questions to this test.'
+      message: `Test created successfully. ${questions.length} questions generated and linked.`,
     })
   } catch (error) {
     console.error('AI Test Generation Error:', error)
