@@ -103,6 +103,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
+    // Validate file size (50MB max)
+    const maxSize = 50 * 1024 * 1024
+    if ((file as any).size > maxSize) {
+      return NextResponse.json({ error: 'File too large. Maximum size is 50MB.' }, { status: 413 })
+    }
+
     const filename = (file as any).name || 'upload'
     const type = file.type || ''
     const ext = filename.split('.').pop()?.toLowerCase()
@@ -199,3 +205,13 @@ export async function POST(req: NextRequest) {
 }
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const maxDuration = 60 // 60 seconds for large file processing
+
+// Increase body size limit for this route
+export const config = {
+  api: {
+    bodyParser: false, // Disable default body parser
+    responseLimit: false,
+  },
+}

@@ -31,6 +31,16 @@ const nextConfig = {
   swcMinify: true,
   reactStrictMode: true,
 
+  // API route configuration for large file uploads
+  experimental: {
+    serverComponentsExternalPackages: ['pdf-parse'],
+  },
+
+  // Increase body size limit for file uploads (50MB)
+  serverRuntimeConfig: {
+    maxFileSize: 52428800, // 50MB in bytes
+  },
+
   // Headers for security
   async headers() {
     return [

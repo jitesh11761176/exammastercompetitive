@@ -15,6 +15,12 @@ export default function BulkUploadPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
+      // Validate file size (50MB max)
+      const maxSize = 50 * 1024 * 1024 // 50MB
+      if (selectedFile.size > maxSize) {
+        toast.error('File too large. Maximum size is 50MB.')
+        return
+      }
       setFile(selectedFile)
       setResult(null)
     }
@@ -29,20 +35,29 @@ export default function BulkUploadPage() {
       formData.append('file', file)
       formData.append('autoTag', 'true')
 
+      // Show processing toast
+      toast.loading('Processing file... This may take a minute for large PDFs', {
+        id: 'upload-progress'
+      })
+
       const response = await fetch('/api/admin/bulk-upload', {
         method: 'POST',
         body: formData,
       })
 
+      toast.dismiss('upload-progress')
+
       if (response.ok) {
         const data = await response.json()
         setResult(data)
-        toast.success(`Extracted ${data.questions.length} questions!`)
+        toast.success(`✓ Extracted ${data.questions.length} questions!${data.created ? ` Created ${data.created} in database.` : ''}`)
       } else {
-        throw new Error('Upload failed')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`)
       }
     } catch (error) {
-      toast.error('Failed to process file')
+      console.error('Upload error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to process file')
     } finally {
       setProcessing(false)
     }
@@ -198,13 +213,23 @@ export default function BulkUploadPage() {
           </Button>
 
           {result && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-2">
               <h3 className="font-semibold text-green-900 mb-2">
-                Extraction Complete!
+                ✓ Extraction Complete!
               </h3>
               <p className="text-sm text-green-700">
-                ✓ {result.questions.length} questions extracted
+                Extracted: {result.questions.length} questions
               </p>
+              {result.created > 0 && (
+                <p className="text-sm text-green-700">
+                  Created in database: {result.created} questions
+                </p>
+              )}
+              {result.placement && (
+                <p className="text-xs text-green-600">
+                  Placed in: Category ID {result.placement.categoryId?.slice(0, 8)}...
+                </p>
+              )}
             </div>
           )}
         </CardContent>
