@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,18 +8,106 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Wand2, Loader2, CheckCircle, Sparkles, FileText } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Wand2, Loader2, CheckCircle, Sparkles, FileText, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface Exam {
+  id: string
+  name: string
+  slug: string
+  categoryId: string
+  category: {
+    id: string
+    name: string
+  }
+}
+
+interface ExamCategory {
+  id: string
+  name: string
+  slug: string
+}
 
 export default function AIAssistantPage() {
   const [loading, setLoading] = useState(false)
+  const [exams, setExams] = useState<Exam[]>([])
+  const [categories, setCategories] = useState<ExamCategory[]>([])
+  const [loadingExams, setLoadingExams] = useState(true)
+  const [showNewExamDialog, setShowNewExamDialog] = useState(false)
+  const [newExam, setNewExam] = useState({ name: '', categoryId: '', description: '' })
+  const [creatingExam, setCreatingExam] = useState(false)
+  
   const [formData, setFormData] = useState({
     topic: '',
-    examType: 'SSC CGL',
+    examType: '',
     difficulty: 'MEDIUM',
     numQuestions: 50,
     categoryId: '',
   })
+
+  useEffect(() => {
+    fetchExamsAndCategories()
+  }, [])
+
+  const fetchExamsAndCategories = async () => {
+    try {
+      setLoadingExams(true)
+      const [examsRes, categoriesRes] = await Promise.all([
+        fetch('/api/admin/exams'),
+        fetch('/api/admin/exam-categories')
+      ])
+      
+      if (examsRes.ok && categoriesRes.ok) {
+        const examsData = await examsRes.json()
+        const categoriesData = await categoriesRes.json()
+        setExams(examsData.exams || [])
+        setCategories(categoriesData.categories || [])
+        
+        // Set default exam type if available
+        if (examsData.exams?.length > 0 && !formData.examType) {
+          setFormData(prev => ({ ...prev, examType: examsData.exams[0].name }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch exams:', error)
+      toast.error('Failed to load exam types')
+    } finally {
+      setLoadingExams(false)
+    }
+  }
+
+  const handleCreateExam = async () => {
+    if (!newExam.name || !newExam.categoryId) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    setCreatingExam(true)
+    try {
+      const response = await fetch('/api/admin/exams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newExam),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success(`Exam type "${data.exam.name}" created successfully!`)
+        setExams(prev => [...prev, data.exam])
+        setFormData(prev => ({ ...prev, examType: data.exam.name }))
+        setShowNewExamDialog(false)
+        setNewExam({ name: '', categoryId: '', description: '' })
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to create exam type')
+      }
+    } catch (error) {
+      toast.error('Failed to create exam type')
+    } finally {
+      setCreatingExam(false)
+    }
+  }
 
   const handleGenerate = async () => {
     if (!formData.topic) {
@@ -90,23 +178,111 @@ export default function AIAssistantPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="examType">Exam Type</Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label htmlFor="examType">Exam Type</Label>
+                    <Dialog open={showNewExamDialog} onOpenChange={setShowNewExamDialog}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add New
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New Exam Type</DialogTitle>
+                          <DialogDescription>
+                            Create a new exam type to use in your tests
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div>
+                            <Label htmlFor="new-exam-name">Exam Name *</Label>
+                            <Input
+                              id="new-exam-name"
+                              placeholder="e.g., CTET, NEET, JEE Main"
+                              value={newExam.name}
+                              onChange={(e) =>
+                                setNewExam({ ...newExam, name: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="new-exam-category">Category *</Label>
+                            <Select
+                              value={newExam.categoryId}
+                              onValueChange={(value) =>
+                                setNewExam({ ...newExam, categoryId: value })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-gray-500 mt-1">
+                              If category doesn't exist, contact admin to create it
+                            </p>
+                          </div>
+                          <div>
+                            <Label htmlFor="new-exam-description">Description</Label>
+                            <Textarea
+                              id="new-exam-description"
+                              placeholder="Brief description of the exam"
+                              value={newExam.description}
+                              onChange={(e) =>
+                                setNewExam({ ...newExam, description: e.target.value })
+                              }
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowNewExamDialog(false)}
+                            disabled={creatingExam}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleCreateExam}
+                            disabled={creatingExam}
+                          >
+                            {creatingExam ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              'Create Exam Type'
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                   <Select
                     value={formData.examType}
                     onValueChange={(value) =>
                       setFormData({ ...formData, examType: value })
                     }
+                    disabled={loadingExams}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder={loadingExams ? "Loading..." : "Select exam type"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SSC CGL">SSC CGL</SelectItem>
-                      <SelectItem value="SSC CHSL">SSC CHSL</SelectItem>
-                      <SelectItem value="UPSC IAS">UPSC IAS</SelectItem>
-                      <SelectItem value="IBPS PO">IBPS PO</SelectItem>
-                      <SelectItem value="Railway NTPC">Railway NTPC</SelectItem>
-                      <SelectItem value="Bank Clerk">Bank Clerk</SelectItem>
+                      {exams.map((exam) => (
+                        <SelectItem key={exam.id} value={exam.name}>
+                          {exam.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
