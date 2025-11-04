@@ -8,45 +8,78 @@ import { parseExamContent, convertToDBFormat } from '@/lib/question-parser'
 // Helper: slugify
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
 
-// Resolve category, and optionally map via exam/course
+// Resolve category, and optionally map via course
 async function resolveCategoryAndTopic(opts: {
   categoryId?: string | null
-  examId?: string | null
   courseId?: string | null
   subjectName?: string
   topicName?: string
 }) {
-  const { categoryId, examId, courseId } = opts
+  const { categoryId, courseId } = opts
   const subjectName = opts.subjectName || 'General Knowledge'
   const topicName = opts.topicName || 'General'
 
-  // Determine Exam from courseId or examId
-  let resolvedExam: any = null
+  // Resolve Course if provided
+  let resolvedCourse: any = null
   if (courseId) {
-    const course = await prisma.course.findUnique({ where: { id: courseId } })
-    if (course?.examId) {
-      resolvedExam = await prisma.exam.findUnique({ where: { id: course.examId } })
-    }
-  }
-  if (!resolvedExam && examId) {
-    resolvedExam = await prisma.exam.findUnique({ where: { id: examId } })
+    resolvedCourse = await prisma.course.findUnique({ where: { id: courseId } })
   }
 
-  // Category preference: provided -> by exam name -> fallback
+  // Category preference: provided -> by course -> fallback to default course
   let category = categoryId ? await prisma.category.findUnique({ where: { id: categoryId } }) : null
   if (!category) {
-    const preferredCategoryName = resolvedExam?.name || 'Bulk Upload'
-    const preferredSlug = slugify(preferredCategoryName)
-    category = await prisma.category.findFirst({ where: { slug: preferredSlug } })
-    if (!category) {
-      category = await prisma.category.create({
-        data: {
-          name: preferredCategoryName,
-          slug: preferredSlug,
-          description: 'Auto-created for bulk uploads',
-          isActive: true,
-        }
+    // If we have a course, find or create category under that course
+    if (resolvedCourse) {
+      const preferredCategoryName = 'Bulk Upload'
+      const preferredSlug = slugify(preferredCategoryName)
+      category = await prisma.category.findFirst({ 
+        where: { slug: preferredSlug, courseId: resolvedCourse.id } 
       })
+      if (!category) {
+        category = await prisma.category.create({
+          data: {
+            name: preferredCategoryName,
+            slug: preferredSlug,
+            description: 'Auto-created for bulk uploads',
+            isActive: true,
+            courseId: resolvedCourse.id,
+          }
+        })
+      }
+    } else {
+      // No course provided - find or create a default course
+      let defaultCourse = await prisma.course.findFirst({
+        where: { slug: 'bulk-upload' }
+      })
+      if (!defaultCourse) {
+        defaultCourse = await prisma.course.create({
+          data: {
+            title: 'Bulk Upload',
+            slug: 'bulk-upload',
+            description: 'Questions uploaded via bulk upload',
+            isActive: true,
+            isFree: true,
+            order: 996,
+          }
+        })
+      }
+      
+      const preferredCategoryName = 'General'
+      const preferredSlug = slugify(preferredCategoryName)
+      category = await prisma.category.findFirst({ 
+        where: { slug: preferredSlug, courseId: defaultCourse.id } 
+      })
+      if (!category) {
+        category = await prisma.category.create({
+          data: {
+            name: preferredCategoryName,
+            slug: preferredSlug,
+            description: 'Auto-created for bulk uploads',
+            isActive: true,
+            courseId: defaultCourse.id,
+          }
+        })
+      }
     }
   }
 
@@ -94,7 +127,6 @@ export async function POST(req: NextRequest) {
     const file = form.get('file') as File | null
     const autoTag = String(form.get('autoTag') || 'false') === 'true'
     const categoryId = (form.get('categoryId') as string) || undefined
-    const examId = (form.get('examId') as string) || undefined
     const courseId = (form.get('courseId') as string) || undefined
     const subjectName = (form.get('subject') as string) || undefined
     const topicName = (form.get('topic') as string) || undefined
@@ -159,7 +191,6 @@ export async function POST(req: NextRequest) {
       const first = extractedQuestions[0]
       const resolved = await resolveCategoryAndTopic({
         categoryId,
-        examId,
         courseId,
         subjectName: subjectName || first.subject,
         topicName: topicName || first.topic,
