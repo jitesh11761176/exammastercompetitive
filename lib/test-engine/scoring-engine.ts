@@ -18,6 +18,10 @@ interface QuestionWithCorrect {
   negativeMarks: number
   partialMarking: boolean
   partialMarkingRules?: any
+  optionA?: string | null
+  optionB?: string | null
+  optionC?: string | null
+  optionD?: string | null
 }
 
 export async function calculateTestScore(
@@ -51,6 +55,10 @@ export async function calculateTestScore(
       negativeMarks: true,
       partialMarking: true,
       partialMarkingRules: true,
+      optionA: true,
+      optionB: true,
+      optionC: true,
+      optionD: true,
     },
   })
 
@@ -76,7 +84,7 @@ export async function calculateTestScore(
     let isPartialCorrect = false
     let feedback = ''
 
-    if (!answer.answer || answer.answer === null) {
+    if (answer.answer === undefined || answer.answer === null || answer.answer === '') {
       // Unattempted
       unattempted++
       feedback = 'Not attempted'
@@ -85,7 +93,18 @@ export async function calculateTestScore(
       switch (question.questionType) {
         case 'MCQ':
         case 'TRUE_FALSE':
-          if (answer.answer === question.correctOption) {
+          // Normalize user answer to letter if it is option text
+          const asString = Array.isArray(answer.answer) ? String(answer.answer[0]) : String(answer.answer)
+          const letters = ['A','B','C','D']
+          const opts = [question.optionA, question.optionB, question.optionC, question.optionD]
+          const normalized = (s: any) => (s ?? '').toString().trim().replace(/\s+/g,' ')
+          let userLetter = asString.toUpperCase().replace(/[^A-D]/g,'')
+          if (!letters.includes(userLetter)) {
+            // try map from text to letter
+            const idx = opts.findIndex(opt => normalized(opt).toLowerCase() === normalized(asString).toLowerCase())
+            if (idx >= 0) userLetter = letters[idx]
+          }
+          if (userLetter === question.correctOption) {
             isCorrect = true
             questionScore = question.marks
             correctAnswers++

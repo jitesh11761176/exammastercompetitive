@@ -104,6 +104,28 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      // Resolve correct option letter robustly
+      const letters = ['A','B','C','D'] as const
+      const opts = [q.options[0], q.options[1], q.options[2], q.options[3]]
+      const normalized = (s: any) => (s ?? '').toString().trim().replace(/\s+/g,' ')
+      let correctLetter: string | null = null
+      if (q.correctOption && letters.includes(String(q.correctOption).toUpperCase() as any)) {
+        correctLetter = String(q.correctOption).toUpperCase()
+      } else if (q.correctAnswer) {
+        // Try exact text match
+        const idx = opts.findIndex(opt => normalized(opt).toLowerCase() === normalized(q.correctAnswer).toLowerCase())
+        if (idx >= 0) correctLetter = letters[idx]
+        // Try pattern like "Option A" or "(A)"
+        if (!correctLetter) {
+          const m = String(q.correctAnswer).match(/[\(\s]?([A-D])[\)\s]?/i)
+          if (m) correctLetter = m[1].toUpperCase()
+        }
+      }
+      if (!correctLetter) {
+        // Fallback to first option to avoid nulls (better than undefined)
+        correctLetter = 'A'
+      }
+
       const newQuestion = await prisma.question.create({
         data: {
           questionText: q.questionText,
@@ -116,7 +138,7 @@ export async function POST(req: NextRequest) {
           optionB: q.options[1],
           optionC: q.options[2],
           optionD: q.options[3],
-          correctOption: ['A', 'B', 'C', 'D'][q.options.indexOf(q.correctAnswer)],
+          correctOption: correctLetter,
           topicId: topicDb.id,
           isVerified: true,
           moderationStatus: 'APPROVED',
