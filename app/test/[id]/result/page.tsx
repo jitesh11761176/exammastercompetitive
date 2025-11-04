@@ -107,7 +107,8 @@ export default function TestResultPage() {
   }
 
   const accuracy = result.correctAnswers / (result.correctAnswers + result.wrongAnswers) * 100 || 0
-  const isPassed = result.percentage >= result.test.passingScore
+  const percentage = result.percentage || 0
+  const isPassed = percentage >= (result.test.passingScore || 33)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 dark:from-gray-950 dark:to-gray-900 p-4 md:p-8">
@@ -135,7 +136,7 @@ export default function TestResultPage() {
                 <div className={`text-5xl md:text-6xl font-bold ${
                   isPassed ? 'text-green-600' : 'text-orange-600'
                 }`}>
-                  {result.percentage.toFixed(1)}%
+                  {percentage.toFixed(1)}%
                 </div>
                 <div className="text-sm text-gray-500 mt-1">Score</div>
               </div>
