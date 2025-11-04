@@ -1,204 +1,28 @@
-import { prisma } from './prisma'
+// Deprecated TestSeries helpers.
+// These utilities are kept as no-ops to avoid breaking imports during migration.
 
-export async function getTestSeriesBySlug(slug: string, examId: string, userId?: string) {
-  const testSeries = await prisma.testSeries.findFirst({
-    where: {
-      slug,
-      examId,
-      isActive: true,
-    },
-    include: {
-      exam: {
-        include: {
-          category: true,
-        },
-      },
-      tests: {
-        where: {
-          isActive: true,
-        },
-        orderBy: {
-          order: 'asc',
-        },
-      },
-      ...(userId && {
-        enrollments: {
-          where: {
-            userId,
-            status: 'ACTIVE',
-          },
-        },
-      }),
-    },
-  })
-
-  return testSeries
+export async function getTestSeriesBySlug(_slug: string, _examId: string, _userId?: string) {
+  // TestSeries model removed. No replacement in new hierarchy.
+  return null
 }
 
-export async function getAllTestSeries(filters?: {
+export async function getAllTestSeries(_filters?: {
   examCategory?: string
   exam?: string
   isFree?: boolean
   userId?: string
 }) {
-  const where: any = {
-    isActive: true,
-    publishedAt: { not: null },
-  }
-
-  if (filters?.examCategory) {
-    where.exam = {
-      category: {
-        slug: filters.examCategory,
-      },
-    }
-  }
-
-  if (filters?.exam) {
-    where.exam = {
-      ...where.exam,
-      slug: filters.exam,
-    }
-  }
-
-  if (filters?.isFree !== undefined) {
-    where.isFree = filters.isFree
-  }
-
-  const testSeries = await prisma.testSeries.findMany({
-    where,
-    include: {
-      exam: {
-        include: {
-          category: true,
-        },
-      },
-      _count: {
-        select: {
-          tests: true,
-          enrollments: true,
-        },
-      },
-      ...(filters?.userId && {
-        enrollments: {
-          where: {
-            userId: filters.userId,
-            status: 'ACTIVE',
-          },
-          take: 1,
-        },
-      }),
-    },
-    orderBy: [
-      { order: 'asc' },
-      { createdAt: 'desc' },
-    ],
-  })
-
-  return testSeries
+  // TestSeries model removed. Use Course/Category/Test endpoints instead.
+  return [] as any[]
 }
 
-export async function checkTestAccess(userId: string, testId: string) {
-  const test = await prisma.test.findUnique({
-    where: { id: testId },
-    include: {
-      series: {
-        include: {
-          enrollments: {
-            where: {
-              userId,
-              status: 'ACTIVE',
-            },
-          },
-        },
-      },
-    },
-  })
-
-  if (!test) {
-    return { hasAccess: false, reason: 'Test not found' }
-  }
-
-  // If test is part of a series
-  if (test.seriesId) {
-    // Check if user is enrolled
-    if (!test.series?.enrollments || test.series.enrollments.length === 0) {
-      return {
-        hasAccess: false,
-        reason: 'You need to enroll in the test series to access this test',
-      }
-    }
-
-    const enrollment = test.series.enrollments[0]
-
-    // Check if enrollment is expired
-    if (enrollment.expiresAt < new Date()) {
-      return {
-        hasAccess: false,
-        reason: 'Your enrollment has expired. Please renew to continue.',
-      }
-    }
-
-    // Check if test is locked
-    if (test.isLocked && test.order && test.order > 1) {
-      const previousTest = await prisma.test.findFirst({
-        where: {
-          seriesId: test.seriesId,
-          order: test.order - 1,
-        },
-      })
-
-      if (previousTest) {
-        const previousAttempt = await prisma.testAttempt.findFirst({
-          where: {
-            userId,
-            testId: previousTest.id,
-            status: 'COMPLETED',
-          },
-        })
-
-        if (!previousAttempt) {
-          return {
-            hasAccess: false,
-            reason: `Complete "${previousTest.title}" first to unlock this test`,
-          }
-        }
-      }
-    }
-  }
-
-  // If test is free or not part of series
-  return { hasAccess: true }
+export async function checkTestAccess(_userId: string, _testId: string) {
+  // Access is controlled per Test (isFree/isPremium) and CourseEnrollment.
+  // Callers should use course/category enrollment checks instead.
+  return { hasAccess: true as const }
 }
 
-export async function updateTestSeriesStats(seriesId: string) {
-  const tests = await prisma.test.count({
-    where: {
-      seriesId,
-      isActive: true,
-    },
-  })
-
-  const questions = await prisma.test.findMany({
-    where: {
-      seriesId,
-      isActive: true,
-    },
-    select: {
-      questionIds: true,
-    },
-  })
-
-  const totalQuestions = questions.reduce(
-    (sum, test) => sum + test.questionIds.length,
-    0
-  )
-
-  await prisma.testSeries.update({
-    where: { id: seriesId },
-    data: {
-      totalTests: tests,
-      totalQuestions,
-    },
-  })
+export async function updateTestSeriesStats(_seriesId: string) {
+  // No-op: TestSeries removed.
+  return
 }
