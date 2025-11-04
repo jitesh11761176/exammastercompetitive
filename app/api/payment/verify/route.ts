@@ -89,46 +89,15 @@ export async function POST(req: NextRequest) {
 
     // Grant access based on item type
     if (purchase.itemType === 'TEST_SERIES') {
-      // Check if already enrolled
-      const existingEnrollment = await prisma.enrollment.findUnique({
-        where: {
-          userId_seriesId: {
-            userId: session.user.id,
-            seriesId: purchase.itemId,
-          },
-        },
-      })
-
-      if (!existingEnrollment) {
-        // Get series details for validity
-        const series = await prisma.testSeries.findUnique({
-          where: { id: purchase.itemId },
-        })
-
-        if (series) {
-          const expiresAt = new Date()
-          expiresAt.setDate(expiresAt.getDate() + series.validityDays)
-
-          // Create enrollment
-          await prisma.enrollment.create({
-            data: {
-              userId: session.user.id,
-              seriesId: purchase.itemId,
-              status: 'ACTIVE',
-              enrolledAt: new Date(),
-              expiresAt,
-              paymentId: purchaseId,
-              amountPaid: purchase.amount,
-            },
-          })
-
-          // Update enrolled count
-          await prisma.testSeries.update({
-            where: { id: purchase.itemId },
-            data: { enrolledCount: { increment: 1 } },
-          })
-        }
-      }
+      // TEST_SERIES is deprecated - should not happen since create-order blocks it
+      // If somehow a TEST_SERIES purchase exists, log error and skip enrollment
+      console.error('Attempted to verify payment for deprecated TEST_SERIES item:', purchase.itemId)
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Test series purchases are no longer supported',
+      }, { status: 400 })
+      
     } else if (purchase.itemType === 'COURSE') {
       // Check if already enrolled
       const existingEnrollment = await prisma.courseEnrollment.findUnique({
@@ -142,22 +111,23 @@ export async function POST(req: NextRequest) {
 
       if (!existingEnrollment) {
         // Create course enrollment
+        // Note: CourseEnrollment doesn't have paymentId or amountPaid fields
+        // Payment info is stored in Purchase model
         await prisma.courseEnrollment.create({
           data: {
             userId: session.user.id,
             courseId: purchase.itemId,
-            status: 'ACTIVE',
             enrolledAt: new Date(),
-            paymentId: purchaseId,
-            amountPaid: purchase.amount,
+            status: 'ACTIVE',
           },
         })
 
-        // Update enrolled count
-        await prisma.course.update({
-          where: { id: purchase.itemId },
-          data: { enrolledCount: { increment: 1 } },
-        })
+        // Note: Course model doesn't have enrolledCount field in the new schema
+        // If you need enrollment tracking, add it to the Course model
+        // await prisma.course.update({
+        //   where: { id: purchase.itemId },
+        //   data: { enrolledCount: { increment: 1 } },
+        // })
       }
     }
 
