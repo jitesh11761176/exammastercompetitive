@@ -136,6 +136,25 @@ export async function POST(request: NextRequest) {
     // Handle category based on mode
     let category: any
 
+    // Find or create a default course for Excel uploads
+    let defaultCourse = await prisma.course.findFirst({
+      where: { slug: 'excel-uploads' }
+    })
+
+    if (!defaultCourse) {
+      defaultCourse = await prisma.course.create({
+        data: {
+          title: 'Excel Uploads',
+          slug: 'excel-uploads',
+          description: 'Questions uploaded via Excel/CSV files',
+          isActive: true,
+          isFree: true,
+          order: 994
+        }
+      })
+      console.log(`✅ Created default course for Excel uploads`)
+    }
+
     if (categoryMode === 'existing') {
       // Use existing category
       if (!categoryId) {
@@ -169,15 +188,18 @@ export async function POST(request: NextRequest) {
       
       const categorySlug = newCategoryName.toLowerCase().replace(/\s+/g, '-')
       
-      // Check if category already exists
-      const existingCategory = await prisma.category.findUnique({
-        where: { slug: categorySlug }
+      // Check if category already exists in this course
+      const existingCategory = await prisma.category.findFirst({
+        where: { 
+          slug: categorySlug,
+          courseId: defaultCourse.id
+        }
       })
       
       if (existingCategory) {
         return NextResponse.json({
           success: false,
-          message: `Category "${newCategoryName}" already exists. Please use a different name or select the existing category.`
+          message: `Category "${newCategoryName}" already exists in this course. Please use a different name or select the existing category.`
         }, { status: 400 })
       }
       
@@ -186,7 +208,8 @@ export async function POST(request: NextRequest) {
           name: newCategoryName,
           slug: categorySlug,
           description: newCategoryDescription || `Created via Excel upload on ${new Date().toLocaleDateString()}`,
-          isActive: true
+          isActive: true,
+          courseId: defaultCourse.id
         }
       })
       
@@ -217,9 +240,12 @@ export async function POST(request: NextRequest) {
       const fullCategoryName = `${parentCategory.name} - ${nestedCategoryName}`
       const categorySlug = fullCategoryName.toLowerCase().replace(/\s+/g, '-')
       
-      // Check if nested category already exists
-      const existingCategory = await prisma.category.findUnique({
-        where: { slug: categorySlug }
+      // Check if nested category already exists in the same course as parent
+      const existingCategory = await prisma.category.findFirst({
+        where: { 
+          slug: categorySlug,
+          courseId: parentCategory.courseId
+        }
       })
       
       if (existingCategory) {
@@ -231,7 +257,8 @@ export async function POST(request: NextRequest) {
             name: fullCategoryName,
             slug: categorySlug,
             description: `Subcategory of ${parentCategory.name}, created via Excel upload on ${new Date().toLocaleDateString()}`,
-            isActive: true
+            isActive: true,
+            courseId: parentCategory.courseId
           }
         })
         console.log(`✅ Created nested category: ${category.name}`)
@@ -242,7 +269,10 @@ export async function POST(request: NextRequest) {
       let fallbackCategoryName = categoryName || 'General'
       
       category = await prisma.category.findFirst({
-        where: { name: fallbackCategoryName }
+        where: { 
+          name: fallbackCategoryName,
+          courseId: defaultCourse.id
+        }
       })
 
       if (!category) {
@@ -251,7 +281,8 @@ export async function POST(request: NextRequest) {
             name: fallbackCategoryName,
             slug: fallbackCategoryName.toLowerCase().replace(/\s+/g, '-'),
             description: `Uploaded via Excel on ${new Date().toLocaleDateString()}`,
-            isActive: true
+            isActive: true,
+            courseId: defaultCourse.id
           }
         })
         console.log(`✅ Created category: ${fallbackCategoryName}`)
