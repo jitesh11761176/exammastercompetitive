@@ -4,37 +4,47 @@ import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Users } from "lucide-react"
-import { PaymentButton } from "@/components/payment/PaymentButton"
+import { BookOpen, Users } from "lucide-react"
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: "Video Courses | ExamMaster Competitive",
-  description: "Browse our comprehensive video courses for competitive exams"
+  title: "Courses | ExamMaster Competitive",
+  description: "Browse our comprehensive courses for competitive exams"
 }
 
 async function getCourses() {
   return await prisma.course.findMany({
     where: {
-      isPublished: true
+      isActive: true
     },
     include: {
       _count: {
         select: {
-          lectures: true,
+          categories: true,
           enrollments: true
+        }
+      },
+      categories: {
+        where: {
+          isActive: true
+        },
+        take: 3,
+        select: {
+          id: true,
+          name: true,
+          slug: true
         }
       }
     },
     orderBy: {
-      createdAt: "desc"
+      order: 'asc'
     }
   })
 }
 
 function CourseCard({ course }: { course: any }) {
-  const isFree = course.price === 0
+  const isFree = course.isFree
   
   return (
     <Card className="flex flex-col h-full">
@@ -69,18 +79,8 @@ function CourseCard({ course }: { course: any }) {
       <CardContent className="flex-1">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <PlayCircle className="h-4 w-4" />
-            <span>{course._count.lectures} lectures</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>{course.duration || 'Self-paced'}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-muted-foreground">
             <BookOpen className="h-4 w-4" />
-            <span>{course.level || 'All Levels'}</span>
+            <span>{course._count.categories} categories</span>
           </div>
           
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -89,11 +89,28 @@ function CourseCard({ course }: { course: any }) {
           </div>
         </div>
 
-        {course.features && course.features.length > 0 && (
+        {/* Show preview of categories */}
+        {course.categories && course.categories.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
-            {course.features.slice(0, 3).map((feature: string, idx: number) => (
+            {course.categories.map((category: any) => (
+              <Badge key={category.id} variant="outline" className="text-xs">
+                {category.name}
+              </Badge>
+            ))}
+            {course._count.categories > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{course._count.categories - 3} more
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Show tags if available */}
+        {course.tags && course.tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {course.tags.slice(0, 3).map((tag: string, idx: number) => (
               <Badge key={idx} variant="outline" className="text-xs">
-                {feature}
+                {tag}
               </Badge>
             ))}
           </div>
@@ -101,32 +118,11 @@ function CourseCard({ course }: { course: any }) {
       </CardContent>
 
       <CardFooter className="flex items-center justify-between gap-2">
-        {isFree ? (
-          <Button asChild className="w-full">
-            <Link href={`/courses/${course.slug}`}>
-              Start Learning
-            </Link>
-          </Button>
-        ) : (
-          <div className="w-full space-y-2">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold">₹{course.price.toLocaleString("en-IN")}</span>
-              {course.discountPrice && course.discountPrice < course.price && (
-                <span className="text-sm text-muted-foreground line-through">
-                  ₹{course.discountPrice.toLocaleString("en-IN")}
-                </span>
-              )}
-            </div>
-            <PaymentButton
-              itemType="COURSE"
-              itemId={course.id}
-              itemTitle={course.title}
-              amount={course.price}
-              buttonText="Enroll Now"
-              fullWidth
-            />
-          </div>
-        )}
+        <Button asChild className="w-full">
+          <Link href={`/courses/${course.slug}`}>
+            {isFree ? 'Start Learning' : 'View Course'}
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   )
@@ -139,9 +135,9 @@ export default async function CoursesPage() {
     <div className="container max-w-7xl py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Video Courses</h1>
+        <h1 className="text-4xl font-bold mb-2">Courses</h1>
         <p className="text-muted-foreground text-lg">
-          Learn from expert instructors with our comprehensive video courses
+          Browse our comprehensive test courses for competitive exams
         </p>
       </div>
 
