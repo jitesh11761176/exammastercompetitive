@@ -129,14 +129,33 @@ Example responses:
 
   // Execute the action
   if (action === 'create') {
+    // Categories must now belong to a course - try to find or create a default course
+    let course = await prisma.course.findFirst({
+      where: { slug: 'general-exams' }
+    });
+    
+    if (!course) {
+      course = await prisma.course.create({
+        data: {
+          title: 'General Exams',
+          slug: 'general-exams',
+          description: 'General competitive examination preparation',
+          isActive: true,
+          isFree: true,
+          order: 999
+        }
+      });
+    }
+    
     const category = await prisma.category.create({
       data: {
         name: categoryInfo.name,
         slug: categoryInfo.slug || categoryInfo.name.toLowerCase().replace(/\s+/g, '-'),
         description: categoryInfo.description || null,
+        courseId: course.id,
       }
     });
-    return { type: 'created', name: category.name, description: category.description };
+    return { type: 'created', name: category.name, description: category.description, course: course.title };
   }
 
   if (action === 'delete') {
@@ -160,10 +179,10 @@ Example responses:
   }
 
   if (action === 'nested') {
-    // For nested categories, we can use the description field or create a separate parent-child relationship
-    // For simplicity, we'll create the child category with a parent reference in the name
+    // For nested categories, find the parent category and ensure both belong to same course
     const parentCategory = await prisma.category.findFirst({
-      where: { name: { contains: categoryInfo.parentCategory, mode: 'insensitive' } }
+      where: { name: { contains: categoryInfo.parentCategory, mode: 'insensitive' } },
+      include: { course: true }
     });
     
     if (!parentCategory) throw new Error(`Parent category "${categoryInfo.parentCategory}" not found`);
@@ -173,13 +192,15 @@ Example responses:
         name: `${parentCategory.name} - ${categoryInfo.name}`,
         slug: `${parentCategory.slug}-${categoryInfo.slug}`,
         description: categoryInfo.description || `${categoryInfo.name} under ${parentCategory.name}`,
+        courseId: parentCategory.courseId, // Use same course as parent
       }
     });
     
     return { 
       type: 'nested', 
       parent: parentCategory.name, 
-      child: childCategory.name 
+      child: childCategory.name,
+      course: parentCategory.course.title
     };
   }
 
@@ -707,9 +728,30 @@ Extract and structure ALL questions NOW:`;
 }
 
 async function saveExamToDatabase(examStructure: any) {
-  // First, find or create the category
+  // First, find or create a default course for AI-generated exams
+  let course = await prisma.course.findFirst({
+    where: { slug: 'ai-generated-exams' }
+  });
+
+  if (!course) {
+    course = await prisma.course.create({
+      data: {
+        title: 'AI Generated Exams',
+        slug: 'ai-generated-exams',
+        description: 'Exams created using AI assistant',
+        isActive: true,
+        isFree: true,
+        order: 998
+      }
+    });
+  }
+  
+  // Find or create the category under this course
   let category = await prisma.category.findFirst({
-    where: { name: examStructure.category }
+    where: { 
+      name: examStructure.category,
+      courseId: course.id 
+    }
   });
 
   if (!category) {
@@ -718,7 +760,8 @@ async function saveExamToDatabase(examStructure: any) {
         name: examStructure.category,
         slug: examStructure.category.toLowerCase().replace(/\s+/g, '-'),
         description: examStructure.description,
-        isActive: true
+        isActive: true,
+        courseId: course.id,
       }
     });
   }
@@ -816,14 +859,35 @@ async function saveExamToDatabase(examStructure: any) {
 async function saveQuestionsToDatabase(questions: any[]) {
   const savedQuestions = [];
 
+  // Find or create a default course for uploaded questions
+  let defaultCourse = await prisma.course.findFirst({
+    where: { slug: 'uploaded-questions' }
+  });
+
+  if (!defaultCourse) {
+    defaultCourse = await prisma.course.create({
+      data: {
+        title: 'Uploaded Questions',
+        slug: 'uploaded-questions',
+        description: 'Questions uploaded via file upload',
+        isActive: true,
+        isFree: true,
+        order: 997
+      }
+    });
+  }
+
   for (const q of questions) {
     try {
       // Use category from question or default to "General"
       const categoryName = q.category || 'General';
       
-      // Find or create category
+      // Find or create category under the default course
       let category = await prisma.category.findFirst({
-        where: { name: categoryName }
+        where: { 
+          name: categoryName,
+          courseId: defaultCourse.id
+        }
       });
 
       if (!category) {
@@ -832,10 +896,11 @@ async function saveQuestionsToDatabase(questions: any[]) {
             name: categoryName,
             slug: categoryName.toLowerCase().replace(/\s+/g, '-').replace(/&/g, 'and'),
             description: `Questions for ${categoryName} exams`,
-            isActive: true
+            isActive: true,
+            courseId: defaultCourse.id,
           }
         });
-        console.log(`Created new category: ${categoryName}`);
+        console.log(`Created new category: ${categoryName} under course: ${defaultCourse.title}`);
       }
 
       // Find or create subject
