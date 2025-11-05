@@ -25,7 +25,10 @@ export async function GET() {
     
     // Production-safe auth check - verify session and email presence
     if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ 
+        success: false,
+        error: "Unauthorized" 
+      }, { status: 401 });
     }
 
     const data = await prisma.course.findMany({
@@ -41,11 +44,18 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ data }, { status: 200 });
+    return NextResponse.json({
+      success: true,
+      data
+    }, { status: 200 });
   } catch (err: any) {
     console.error("GET /api/admin/courses:", err);
     return NextResponse.json(
-      { error: "Internal Server Error", detail: err?.message ?? null },
+      { 
+        success: false,
+        error: "Internal Server Error", 
+        detail: err?.message ?? null 
+      },
       { status: 500 }
     );
   }
@@ -57,7 +67,10 @@ export async function POST(req: Request) {
     
     // Production-safe auth check - verify session and email presence
     if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ 
+        success: false,
+        error: "Unauthorized" 
+      }, { status: 401 });
     }
 
     const raw = await req.json().catch(() => ({}));
@@ -77,7 +90,11 @@ export async function POST(req: Request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation failed", issues: parsed.error.flatten() },
+        { 
+          success: false,
+          error: "Validation failed", 
+          issues: parsed.error.flatten() 
+        },
         { status: 400 }
       );
     }
@@ -100,7 +117,10 @@ export async function POST(req: Request) {
 
     if (existingCourse) {
       return NextResponse.json(
-        { error: "A course with this title already exists" },
+        { 
+          success: false,
+          error: "A course with this title already exists" 
+        },
         { status: 409 }
       );
     }
@@ -127,7 +147,11 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ data: course }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      message: "Course created successfully",
+      data: course
+    }, { status: 201 });
   } catch (err: any) {
     // Prisma error surface for debugging
     const code = err?.code ?? "";
@@ -141,6 +165,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(
       { 
+        success: false,
         error: err?.message ?? "Server crash", 
         code, 
         detail: err?.message ?? null,
