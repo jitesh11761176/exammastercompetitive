@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/courses/[courseId]/categories - List categories for a course
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {

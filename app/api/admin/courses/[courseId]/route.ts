@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/courses/[courseId]
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {
@@ -144,7 +144,7 @@ export async function PUT(
 
 // DELETE /api/admin/courses/[courseId]
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {
