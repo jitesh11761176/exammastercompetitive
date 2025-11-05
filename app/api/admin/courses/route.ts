@@ -14,36 +14,52 @@ export async function GET() {
       }, { status: 401 })
     }
 
-    const courses = await prisma.course.findMany({
-      include: {
-        categories: {
-          include: {
-            _count: {
-              select: {
-                tests: true,
-                subjects: true
+    // Try simple query first to check if table exists
+    let courses
+    try {
+      courses = await prisma.course.findMany({
+        include: {
+          categories: {
+            include: {
+              _count: {
+                select: {
+                  tests: true,
+                  subjects: true
+                }
               }
+            }
+          },
+          _count: {
+            select: {
+              enrollments: true,
+              categories: true
             }
           }
         },
-        _count: {
-          select: {
-            enrollments: true,
-            categories: true
-          }
+        orderBy: {
+          order: 'asc'
         }
-      },
-      orderBy: {
-        order: 'asc'
-      }
-    })
+      })
+    } catch (dbError: any) {
+      console.error('Database error:', dbError)
+      
+      // Return detailed error for debugging
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Database error - migration may not have run yet',
+        error: dbError.message,
+        code: dbError.code,
+        meta: dbError.meta
+      }, { status: 500 })
+    }
 
     return NextResponse.json(courses)
   } catch (error: any) {
     console.error('Error fetching courses:', error)
     return NextResponse.json({ 
       success: false, 
-      message: 'Failed to fetch courses' 
+      message: 'Failed to fetch courses',
+      error: error.message 
     }, { status: 500 })
   }
 }
