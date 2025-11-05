@@ -541,7 +541,6 @@ model Course {
   thumbnail   String?
 
   // Metadata
-  icon  String?
   tags  String[]
   order Int      @default(0)
 
