@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff, FolderOpen, ArrowRight } from 'lucide-react'
+import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Course {
