@@ -20,19 +20,18 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Initial sign in
+      // Initial sign in - propagate role from DB
       if (user) {
         token.id = user.id
         token.email = user.email
-        token.role = (user as any).role || 'STUDENT'
+        token.role = user.role || 'STUDENT' // 👈 inject role from user
       }
       return token
     },
     async session({ session, token }) {
       if (session.user && token) {
         session.user.id = token.id as string
-        // @ts-ignore
-        session.user.role = token.role || 'STUDENT'
+        session.user.role = (token.role as 'STUDENT' | 'INSTRUCTOR' | 'ADMIN') || 'STUDENT' // 👈 inject role into session
       }
       return session
     },
