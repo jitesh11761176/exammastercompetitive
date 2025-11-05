@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Trophy, Target, Zap, Award, BookOpen, ArrowRight, TrendingUp } from 'lucide-react'
+import { Trophy, Award, Target, Zap, BookOpen, ArrowRight, TrendingUp } from 'lucide-react'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -16,9 +16,9 @@ export default async function DashboardPage() {
 
   const isAdmin = (session.user as any).role === 'ADMIN'
 
-  // If admin, show admin dashboard
+  // Redirect admins to the dedicated admin panel
   if (isAdmin) {
-    return <AdminDashboard />
+    redirect('/admin')
   }
 
   // Regular user dashboard continues below
@@ -364,194 +364,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  )
-}
-
-// Admin Dashboard Component
-async function AdminDashboard() {
-  // Get admin statistics
-  const [totalUsers, totalTests, totalCategories, totalQuestions, recentActivity] = await Promise.all([
-    prisma.user.count(),
-    prisma.test.count(),
-    prisma.category.count(),
-    prisma.question.count(),
-    prisma.testAttempt.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: { select: { name: true, email: true } },
-        test: { select: { title: true } }
-      }
-    })
-  ])
-
-  const activeUsers = await prisma.user.count({
-    where: {
-      testAttempts: {
-        some: {
-          createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-          }
-        }
-      }
-    }
-  })
-
-  const completedTests = await prisma.testAttempt.count({
-    where: { status: 'COMPLETED' }
-  })
-
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Manage your exam platform</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Users</CardTitle>
-            <Target className="w-5 h-5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totalUsers}</div>
-            <p className="text-sm text-gray-500 mt-1">
-              {activeUsers} active this week
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Tests</CardTitle>
-            <BookOpen className="w-5 h-5 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totalTests}</div>
-            <p className="text-sm text-gray-500 mt-1">
-              {completedTests} attempts completed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Categories</CardTitle>
-            <Award className="w-5 h-5 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totalCategories}</div>
-            <p className="text-sm text-gray-500 mt-1">
-              Exam categories
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Questions</CardTitle>
-            <Zap className="w-5 h-5 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totalQuestions}</div>
-            <p className="text-sm text-gray-500 mt-1">
-              Total question bank
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BookOpen className="w-5 h-5 mr-2 text-primary" />
-              AI Assistant
-            </CardTitle>
-            <CardDescription>Upload questions & create exams</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/admin/ai">
-              <Button className="w-full">Open AI Assistant</Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Target className="w-5 h-5 mr-2 text-primary" />
-              Manage Tests
-            </CardTitle>
-            <CardDescription>View and edit all tests</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/admin/tests">
-              <Button className="w-full" variant="outline">
-                Manage Tests
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-primary" />
-              Analytics
-            </CardTitle>
-            <CardDescription>Platform performance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/analytics">
-              <Button className="w-full" variant="outline">
-                View Analytics
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Test Attempts</CardTitle>
-          <CardDescription>Latest activity on the platform</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentActivity.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No recent activity</p>
-            ) : (
-              recentActivity.map((attempt: any) => (
-                <div key={attempt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{attempt.user.name}</p>
-                    <p className="text-xs text-gray-600">{attempt.test.title}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${
-                      attempt.status === 'COMPLETED' ? 'text-green-600' : 'text-orange-600'
-                    }`}>
-                      {attempt.status === 'COMPLETED' 
-                        ? `${Math.round(attempt.accuracy || 0)}%` 
-                        : 'In Progress'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(attempt.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
