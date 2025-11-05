@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff, FolderOpen, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Course {
@@ -36,6 +37,7 @@ interface Course {
 }
 
 export default function CoursesPage() {
+  const router = useRouter()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -430,22 +432,28 @@ export default function CoursesPage() {
                   
                   <div className="flex gap-2 pt-3">
                     <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => router.push(`/admin/courses/${course.id}/categories`)}
+                      className="flex-1"
+                    >
+                      <FolderOpen className="w-3 h-3 mr-1" />
+                      Manage
+                    </Button>
+                    <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEdit(course)}
-                      className="flex-1"
                     >
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
+                      <Edit className="w-3 h-3" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(course.id)}
-                      className="flex-1 text-red-600 hover:bg-red-50"
+                      className="text-red-600 hover:bg-red-50"
                     >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Delete
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
                 </div>
