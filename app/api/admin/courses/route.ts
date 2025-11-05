@@ -80,6 +80,9 @@ export async function POST(req: Request) {
 
     const { title, description, thumbnail, icon, tags, order, isActive, isFree } = parsed.data;
 
+    // Log parsed data for debugging
+    console.log("Parsed Course Data:", JSON.stringify(parsed.data, null, 2));
+
     // Generate slug from title
     const slug = title
       .toLowerCase()
@@ -124,9 +127,21 @@ export async function POST(req: Request) {
   } catch (err: any) {
     // Prisma error surface for debugging
     const code = err?.code ?? "";
-    console.error("POST /api/admin/courses:", code, err?.message, err);
+    console.error("POST /api/admin/courses failed:", {
+      code,
+      message: err?.message,
+      meta: err?.meta,
+      name: err?.name,
+      stack: err?.stack,
+      fullError: JSON.stringify(err, Object.getOwnPropertyNames(err), 2),
+    });
     return NextResponse.json(
-      { error: "Internal Server Error", code, detail: err?.message ?? null },
+      { 
+        error: err?.message ?? "Server crash", 
+        code, 
+        detail: err?.message ?? null,
+        meta: err?.meta ?? null 
+      },
       { status: 500 }
     );
   }
