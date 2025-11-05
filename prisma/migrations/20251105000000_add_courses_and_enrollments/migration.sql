@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "courses" (
+-- CreateTable (only if not exists)
+CREATE TABLE IF NOT EXISTS "courses" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -16,8 +16,8 @@ CREATE TABLE "courses" (
     CONSTRAINT "courses_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "course_enrollments" (
+-- CreateTable (only if not exists)
+CREATE TABLE IF NOT EXISTS "course_enrollments" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "courseId" TEXT NOT NULL,
@@ -32,38 +32,62 @@ CREATE TABLE "course_enrollments" (
 -- Add courseId to categories table if it doesn't exist
 DO $$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'categories' AND column_name = 'courseid') THEN
-        ALTER TABLE "categories" ADD COLUMN "courseId" TEXT NOT NULL DEFAULT 'temp-course-id';
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'categories') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                       WHERE table_name = 'categories' AND column_name = 'courseid') THEN
+            ALTER TABLE "categories" ADD COLUMN "courseId" TEXT;
+        END IF;
     END IF;
 END $$;
 
--- CreateIndex
-CREATE UNIQUE INDEX "courses_slug_key" ON "courses"("slug");
+-- CreateIndex (only if not exists)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'courses_slug_key') THEN
+        CREATE UNIQUE INDEX "courses_slug_key" ON "courses"("slug");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'courses_slug_idx') THEN
+        CREATE INDEX "courses_slug_idx" ON "courses"("slug");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'courses_isActive_idx') THEN
+        CREATE INDEX "courses_isActive_idx" ON "courses"("isActive");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'course_enrollments_userId_idx') THEN
+        CREATE INDEX "course_enrollments_userId_idx" ON "course_enrollments"("userId");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'course_enrollments_courseId_idx') THEN
+        CREATE INDEX "course_enrollments_courseId_idx" ON "course_enrollments"("courseId");
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'course_enrollments_userId_courseId_key') THEN
+        CREATE UNIQUE INDEX "course_enrollments_userId_courseId_key" ON "course_enrollments"("userId", "courseId");
+    END IF;
+END $$;
 
--- CreateIndex
-CREATE INDEX "courses_slug_idx" ON "courses"("slug");
-
--- CreateIndex
-CREATE INDEX "courses_isActive_idx" ON "courses"("isActive");
-
--- CreateIndex
-CREATE INDEX "course_enrollments_userId_idx" ON "course_enrollments"("userId");
-
--- CreateIndex
-CREATE INDEX "course_enrollments_courseId_idx" ON "course_enrollments"("courseId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "course_enrollments_userId_courseId_key" ON "course_enrollments"("userId", "courseId");
-
--- CreateIndex  
-CREATE UNIQUE INDEX "categories_courseId_slug_key" ON "categories"("courseId", "slug");
-
--- AddForeignKey
-ALTER TABLE "categories" ADD CONSTRAINT "categories_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "course_enrollments" ADD CONSTRAINT "course_enrollments_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "course_enrollments" ADD CONSTRAINT "course_enrollments_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey (only if not exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'categories') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                       WHERE constraint_name = 'categories_courseId_fkey') THEN
+            ALTER TABLE "categories" ADD CONSTRAINT "categories_courseId_fkey" 
+            FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'course_enrollments_userId_fkey') THEN
+        ALTER TABLE "course_enrollments" ADD CONSTRAINT "course_enrollments_userId_fkey" 
+        FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'course_enrollments_courseId_fkey') THEN
+        ALTER TABLE "course_enrollments" ADD CONSTRAINT "course_enrollments_courseId_fkey" 
+        FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
