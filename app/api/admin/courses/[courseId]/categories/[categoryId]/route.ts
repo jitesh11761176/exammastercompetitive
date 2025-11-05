@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/courses/[courseId]/categories/[categoryId]
 export async function GET(
   _request: NextRequest,
