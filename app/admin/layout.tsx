@@ -2,16 +2,10 @@ import { requireAdmin } from '@/lib/admin-check'
 import Link from 'next/link'
 import { 
   LayoutDashboard, 
-  Wand2, 
-  Upload, 
-  FileText, 
   BookOpen, 
   Users,
   Settings,
-  Sparkles,
-  Key,
-  PlusCircle,
-  FolderOpen
+  Key
 } from 'lucide-react'
 
 export default async function AdminLayout({
@@ -23,13 +17,6 @@ export default async function AdminLayout({
 
   const navItems = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { name: '📝 Create Test (Simple)', href: '/admin/tests/create', icon: PlusCircle },
-    { name: '✨ Create Test (Wizard)', href: '/admin/tests/create-easy', icon: Sparkles },
-    { name: 'AI Generator', href: '/admin/ai-assistant', icon: Wand2 },
-    { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
-    { name: 'Tests', href: '/admin/tests', icon: FileText },
-    { name: 'Exam Categories', href: '/admin/exam-categories', icon: FolderOpen },
-    { name: 'Question Categories', href: '/admin/categories', icon: BookOpen },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'API Keys', href: '/admin/api-keys', icon: Key },
