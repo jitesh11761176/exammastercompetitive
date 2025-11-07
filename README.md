@@ -4,7 +4,7 @@ A complete, production-ready competitive exam preparation web application with A
 
 ![ExamMaster Pro](https://img.shields.io/badge/Next.js-14-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
-![Prisma](https://img.shields.io/badge/Prisma-5.7-teal)
+![Firebase](https://img.shields.io/badge/Firebase-11.0-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🚀 Features
@@ -23,8 +23,8 @@ A complete, production-ready competitive exam preparation web application with A
 
 ### Technical Features
 - Server-side rendering with Next.js 14 App Router
-- Type-safe database queries with Prisma
-- Serverless PostgreSQL (Neon)
+- Firebase Firestore for real-time database
+- Firebase Authentication & Analytics
 - State management with Zustand
 - Responsive design for all devices
 - Production-ready deployment configuration
@@ -33,9 +33,8 @@ A complete, production-ready competitive exam preparation web application with A
 
 - **Framework:** Next.js 14 (App Router)
 - **Language:** TypeScript
-- **Database:** Neon PostgreSQL (Serverless)
-- **ORM:** Prisma
-- **Authentication:** NextAuth.js
+- **Database:** Firebase Firestore (NoSQL)
+- **Authentication:** Firebase Auth + NextAuth.js
 - **Styling:** Tailwind CSS + shadcn/ui
 - **State Management:** Zustand
 - **AI:** Google Gemini 2.0 Flash
@@ -47,9 +46,9 @@ A complete, production-ready competitive exam preparation web application with A
 
 ### Prerequisites
 - Node.js 18+ and npm/yarn
-- PostgreSQL database (Neon recommended)
-- Google OAuth credentials
-- Google Gemini API key
+- Firebase project (free tier available)
+- Google OAuth credentials (optional)
+- Google Gemini API key (optional)
 
 ### Steps
 
@@ -71,36 +70,53 @@ cp .env.example .env.local
 
 Edit `.env.local` with your credentials:
 ```env
-DATABASE_URL="your-neon-postgresql-url"
-NEXTAUTH_URL="http://localhost:3000"
+# Firebase Configuration (Required)
+NEXT_PUBLIC_FIREBASE_API_KEY="your-firebase-api-key"
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+NEXT_PUBLIC_FIREBASE_PROJECT_ID="your-project-id"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="your-project.firebasestorage.app"
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+NEXT_PUBLIC_FIREBASE_APP_ID="your-app-id"
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="G-XXXXXXXXXX"
+
+# NextAuth (Optional)
+NEXTAUTH_URL="http://localhost:3001"
 NEXTAUTH_SECRET="your-secret-key"
+
+# Google OAuth (Optional)
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Google Gemini AI (Optional)
 GEMINI_API_KEY="your-gemini-api-key"
 ```
 
-4. **Set up the database**
-```bash
-npx prisma generate
-npx prisma db push
-```
+4. **Set up Firebase Firestore**
+- Go to [Firebase Console](https://console.firebase.google.com)
+- Create/select your project
+- Enable Firestore Database
+- Set up security rules (see FIREBASE-SETUP-COMPLETE.md)
 
 5. **Run the development server**
 ```bash
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000)
+Visit [http://localhost:3001](http://localhost:3001)
 
-## 🗄️ Database Schema
+## 🗄️ Firestore Collections
 
-The application uses the following main models:
-- **User** - User profiles with points, levels, and streaks
-- **Test** - Test metadata and settings
-- **Question** - Individual questions with options and answers
-- **TestAttempt** - User test submissions with scores
-- **Badge** - Achievement badges
-- **UserBadge** - User-earned badges
+The application uses the following main collections:
+- **users** - User profiles with points, levels, and streaks
+- **tests** - Test metadata and settings
+- **questions** - Individual questions with options and answers
+- **testAttempts** - User test submissions with scores
+- **categories** - Test categories
+- **courses** - Course information
+- **enrollments** - User course enrollments
+- **analytics** - User performance analytics
+
+See `FIREBASE-SETUP-COMPLETE.md` for detailed collection structure and security rules.
 
 ## 🔑 Getting API Keys
 
@@ -116,11 +132,13 @@ The application uses the following main models:
 2. Create an API key
 3. Copy the key to your `.env.local`
 
-### Neon PostgreSQL
-1. Sign up at [Neon](https://neon.tech)
-2. Create a new project
-3. Copy the connection string
-4. Add to `.env.local` as `DATABASE_URL`
+### Firebase
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Create a new project or select existing
+3. Go to Project Settings → General
+4. Scroll to "Your apps" section
+5. Copy the Firebase config values
+6. Add all values to `.env.local` with `NEXT_PUBLIC_` prefix
 
 ## 📁 Project Structure
 
@@ -138,13 +156,12 @@ exam-master-pro/
 │   ├── test/            # Test-related components
 │   └── analytics/       # Analytics components
 ├── lib/
-│   ├── prisma.ts        # Prisma client
-│   ├── auth.ts          # NextAuth config
-│   ├── gemini.ts        # AI functions
-│   ├── store.ts         # Zustand stores
-│   └── utils.ts         # Utility functions
-├── prisma/
-│   └── schema.prisma    # Database schema
+│   ├── firebase.ts           # Firebase configuration
+│   ├── firestore-helpers.ts  # Firestore utility functions
+│   ├── auth.ts               # NextAuth config
+│   ├── gemini.ts             # AI functions
+│   ├── store.ts              # Zustand stores
+│   └── utils.ts              # Utility functions
 └── public/              # Static assets
 ```
 
@@ -180,13 +197,11 @@ git push origin main
 6. Use AI doubt clarification
 
 ### For Admins
-1. Use Prisma Studio to manage tests
-```bash
-npx prisma studio
-```
-2. Create tests and questions
+1. Access admin panel at `/admin`
+2. Create tests and questions via admin UI
 3. Set difficulty levels and time limits
-4. Monitor user performance
+4. Monitor user performance through Firebase Console
+5. Manage content directly in Firestore Database
 
 ## 🔧 Configuration
 
