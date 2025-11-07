@@ -35,6 +35,13 @@ export function getAuthOptions(): NextAuthOptions {
         }
 
         // ALWAYS fetch fresh role from Firestore (not just on initial sign in)
+        // Skip during build time
+        if (typeof window === 'undefined' && !process.env.VERCEL_ENV) {
+          // Build time - skip Firestore check
+          token.role = token.role || 'STUDENT'
+          return token
+        }
+
         try {
           const { getDocumentById } = await import('./firestore-helpers')
           const userId = token.email as string // Use email as user ID
