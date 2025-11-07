@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+import { getDocumentById } from './firestore-helpers'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -22,8 +23,16 @@ export const authOptions: NextAuthOptions = {
         // token.sub is the stable user id when no DB adapter is used
         token.id = (user as any).id || token.sub
         token.email = user.email
-        // Default role without DB
-        token.role = (user as any).role || token.role || 'STUDENT'
+
+        // Fetch user role from Firestore
+        try {
+          const userId = token.email as string // Use email as user ID
+          const userDoc = await getDocumentById('users', userId)
+          token.role = userDoc?.role || 'STUDENT'
+        } catch (error) {
+          console.warn('Failed to fetch user role from Firestore:', error)
+          token.role = 'STUDENT' // Default role
+        }
       }
       return token
     },
