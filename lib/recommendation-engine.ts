@@ -52,7 +52,7 @@ export async function getNextBestTest(userId: string) {
     select: { categoryId: true },
   })
 
-  const categoryIds = interests.map(i => i.categoryId)
+  const categoryIds = interests.map((i: any) => i.categoryId)
 
   // Get user's completed tests
   const completedTests = await prisma.testAttempt.findMany({
@@ -63,7 +63,7 @@ export async function getNextBestTest(userId: string) {
     select: { testId: true },
   })
 
-  const completedTestIds = completedTests.map(t => t.testId)
+  const completedTestIds = completedTests.map((t: any) => t.testId)
 
   // Find tests focusing on weak topics
   const recommendedTests = await prisma.test.findMany({
@@ -81,7 +81,7 @@ export async function getNextBestTest(userId: string) {
   })
 
   // Score each test
-  const scoredTests = recommendedTests.map(test => {
+  const scoredTests = recommendedTests.map((test: any) => {
     let score = 0.5 // Base score
 
     // Higher score for topic-wise tests on weak topics
@@ -105,9 +105,9 @@ export async function getNextBestTest(userId: string) {
   })
 
   // Sort by score and return top 5
-  scoredTests.sort((a, b) => b.score - a.score)
+  scoredTests.sort((a: any, b: any) => b.score - a.score)
 
-  return scoredTests.slice(0, 5).map(({ test, score, reason }) => ({
+  return scoredTests.slice(0, 5).map(({ test, score, reason }: any) => ({
     testId: test.id,
     title: test.title,
     category: test.category.name,
@@ -165,7 +165,7 @@ export async function getWeakTopicRecommendations(userId: string) {
   // Calculate accuracy per topic
   const topicStats = new Map<string, { correct: number; total: number; name: string; subject: string }>()
 
-  userProgress.forEach(progress => {
+  userProgress.forEach((progress: any) => {
     const topicId = progress.question.topicId
     const stats = topicStats.get(topicId) || {
       correct: 0,
@@ -279,8 +279,8 @@ export async function getSimilarUserRecommendations(userId: string) {
     return [] // Not enough data
   }
 
-  const userTestIds = userAttempts.map(a => a.testId)
-  const userAvgAccuracy = userAttempts.reduce((sum, a) => sum + a.accuracy, 0) / userAttempts.length
+  const userTestIds = userAttempts.map((a: any) => a.testId)
+  const userAvgAccuracy = userAttempts.reduce((sum: number, a: any) => sum + a.accuracy, 0) / userAttempts.length
 
   // Find similar users (took at least 2 same tests, similar accuracy)
   const similarUsers = await prisma.testAttempt.findMany({
@@ -300,7 +300,7 @@ export async function getSimilarUserRecommendations(userId: string) {
     take: 50,
   })
 
-  const similarUserIds = similarUsers.map(u => u.userId)
+  const similarUserIds = similarUsers.map((u: any) => u.userId)
 
   // Find tests these users completed but current user hasn't
   const recommendations = await prisma.testAttempt.findMany({
@@ -322,7 +322,7 @@ export async function getSimilarUserRecommendations(userId: string) {
     take: 10,
   })
 
-  return recommendations.map(r => ({
+  return recommendations.map((r: any) => ({
     testId: r.testId,
     title: r.test.title,
     category: r.test.category.name,
