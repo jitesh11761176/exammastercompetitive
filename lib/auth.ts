@@ -1,10 +1,10 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import { PrismaAdapter } from '@auth/prisma-adapter'
-import { prisma } from './prisma'
+import { FirestoreAdapter } from "@next-auth/firebase-adapter"
+import { firestore } from './firebase'
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: FirestoreAdapter(firestore as any),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
@@ -47,7 +47,7 @@ export const authOptions: NextAuthOptions = {
           return false
         }
 
-        // Allow sign in - user will be created by Prisma adapter if needed
+        // Allow sign in
         console.log('[NextAuth] SignIn callback completed successfully')
         return true
       } catch (error) {
