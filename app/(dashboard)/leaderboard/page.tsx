@@ -1,60 +1,54 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { firestore } from '@/lib/firebase'
+import { collection, query, orderBy, limit, getDocs, where, getCountFromServer } from 'firebase/firestore'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, Zap } from 'lucide-react'
 import Image from 'next/image'
 
+interface User {
+  id: string;
+  name: string | null;
+  image: string | null;
+  email: string | null;
+  gamification?: {
+    totalPoints: number;
+    currentLevel: number;
+  };
+}
+
 export default async function LeaderboardPage() {
   const session = await getServerSession(authOptions)
   
-  if (!session?.user) {
+  if (!session?.user || !session.user.email) {
     redirect('/login')
   }
 
-  const topUsers = await prisma.user.findMany({
-    take: 50,
-    orderBy: { 
-      gamification: {
-        totalPoints: 'desc'
-      }
-    },
-    select: {
-      id: true,
-      name: true,
-      image: true,
-      email: true,
-      gamification: {
-        select: {
-          totalPoints: true,
-          currentLevel: true,
-        }
-      }
-    }
-  })
+  const usersCollection = collection(firestore, 'users');
 
-  const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email! },
-    select: {
-      id: true,
-      gamification: {
-        select: {
-          totalPoints: true,
-        }
-      }
-    }
-  })
+  // Get top 50 users
+  const topUsersQuery = query(usersCollection, orderBy('gamification.totalPoints', 'desc'), limit(50));
+  const topUsersSnapshot = await getDocs(topUsersQuery);
+  const topUsers: User[] = topUsersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 
-  const currentUserRank = await prisma.user.count({
-    where: {
-      gamification: {
-        totalPoints: {
-          gt: currentUser?.gamification?.totalPoints || 0
-        }
-      }
-    }
-  }) + 1
+  // Get current user
+  const currentUserQuery = query(usersCollection, where('email', '==', session.user.email));
+  const currentUserSnapshot = await getDocs(currentUserQuery);
+  const currentUser: User | null = currentUserSnapshot.empty ? null : { id: currentUserSnapshot.docs[0].id, ...currentUserSnapshot.docs[0].data() } as User;
+
+  let currentUserRank = -1;
+  if (currentUser?.gamification?.totalPoints) {
+    const rankQuery = query(usersCollection, where('gamification.totalPoints', '>', currentUser.gamification.totalPoints));
+    const rankSnapshot = await getCountFromServer(rankQuery);
+    currentUserRank = rankSnapshot.data().count + 1;
+  } else if (currentUser) {
+    // If user exists but has no points, count all users with points
+    const rankQuery = query(usersCollection, where('gamification.totalPoints', '>', 0));
+    const rankSnapshot = await getCountFromServer(rankQuery);
+    currentUserRank = rankSnapshot.data().count + 1;
+  }
+
 
   return (
     <div className="space-y-8">
