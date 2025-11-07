@@ -105,19 +105,14 @@ export function getAuthOptions(): NextAuthOptions {
   }
 }
 
-// For backward compatibility, export authOptions as a lazy getter
+// Lazy-loaded authOptions to prevent build-time evaluation
 let _authOptions: NextAuthOptions | undefined
 
-Object.defineProperty(module.exports, 'authOptions', {
-  get() {
+export const authOptions: NextAuthOptions = new Proxy({} as NextAuthOptions, {
+  get(_target, prop) {
     if (!_authOptions) {
       _authOptions = getAuthOptions()
     }
-    return _authOptions
-  },
-  enumerable: true,
-  configurable: false
+    return (_authOptions as any)[prop]
+  }
 })
-
-// Also export it normally for TypeScript
-export const authOptions: NextAuthOptions = {} as any

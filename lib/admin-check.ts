@@ -1,9 +1,8 @@
 import { getServerSession } from 'next-auth'
+import { authOptions } from './auth'
 import { redirect } from 'next/navigation'
 
 export async function requireAdmin() {
-  // Dynamically import auth options to avoid build-time evaluation
-  const { authOptions } = await import('./auth')
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
@@ -19,8 +18,6 @@ export async function requireAdmin() {
 }
 
 export async function isAdmin() {
-  // Dynamically import auth options to avoid build-time evaluation
-  const { authOptions } = await import('./auth')
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
