@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+// TODO: Migrate to Firestore
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -16,32 +16,20 @@ export default async function ProfilePage() {
     redirect('/login')
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email! },
-    include: {
-      userBadges: {
-        include: { badge: true },
-        orderBy: { unlockedAt: 'desc' }
-      },
-      testAttempts: {
-        where: { status: 'COMPLETED' },
-        orderBy: { endTime: 'desc' },
-        take: 10
-      },
-      gamification: true,
-      analytics: true
-    }
-  })
-
-  if (!user) {
-    redirect('/login')
+  // Placeholder data during migration
+  const user = {
+    name: session.user.name,
+    image: (session.user as any).image || null,
+    gamification: { currentLevel: 1, totalPoints: 0 },
+    userBadges: [] as any[],
+    testAttempts: [] as any[],
   }
 
-  const currentLevel = user.gamification?.currentLevel || 1
-  const currentPoints = user.gamification?.totalPoints || 0
-  const pointsForCurrentLevel = (currentLevel - 1) * (currentLevel - 1) * 100
-  const pointsForNextLevel = currentLevel * currentLevel * 100
-  const progressToNextLevel = ((currentPoints - pointsForCurrentLevel) / (pointsForNextLevel - pointsForCurrentLevel)) * 100
+  const currentLevel = 1
+  const currentPoints = 0
+  const pointsForCurrentLevel = 0
+  const pointsForNextLevel = 100
+  const progressToNextLevel = 0
 
   return (
     <div className="space-y-8">

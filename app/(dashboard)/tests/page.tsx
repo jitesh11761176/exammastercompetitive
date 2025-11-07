@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+// TODO: Migrate to Firestore
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,23 +14,8 @@ export default async function TestsPage() {
     redirect('/login')
   }
 
-  // Show ALL active tests to all users
-  const tests = await prisma.test.findMany({
-    where: { 
-      isActive: true
-    },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      category: {
-        select: {
-          name: true,
-        }
-      },
-      _count: {
-        select: { attempts: true }
-      }
-    }
-  })
+  // Placeholder list while migrating to Firestore
+  const tests: any[] = []
 
   const getTestTypeBadge = (testType: string) => {
     const badges: Record<string, string> = {

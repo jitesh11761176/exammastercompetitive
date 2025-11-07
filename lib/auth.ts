@@ -1,10 +1,7 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import { FirestoreAdapter } from "@next-auth/firebase-adapter"
-import { firestore } from './firebase'
 
 export const authOptions: NextAuthOptions = {
-  adapter: FirestoreAdapter(firestore as any),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
@@ -20,17 +17,19 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Initial sign in - propagate role from DB
+      // Initial sign in
       if (user) {
-        token.id = user.id
+        // token.sub is the stable user id when no DB adapter is used
+        token.id = (user as any).id || token.sub
         token.email = user.email
-        token.role = user.role || 'STUDENT' // 👈 inject role from user
+        // Default role without DB
+        token.role = (user as any).role || token.role || 'STUDENT'
       }
       return token
     },
     async session({ session, token }) {
       if (session.user && token) {
-        session.user.id = token.id as string
+        session.user.id = (token.id as string) || (token.sub as string)
         session.user.role = (token.role as 'STUDENT' | 'INSTRUCTOR' | 'ADMIN')
         session.user.role ??= 'STUDENT' // 👈 ensure default role if undefined
       }
@@ -47,7 +46,7 @@ export const authOptions: NextAuthOptions = {
           return false
         }
 
-        // Allow sign in
+        // Allow sign in (no DB adapter)
         console.log('[NextAuth] SignIn callback completed successfully')
         return true
       } catch (error) {

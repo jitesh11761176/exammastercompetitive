@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+// TODO: Migrate to Firestore
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,54 +17,20 @@ export default async function ExamCategoryDetailPage({ params }: { params: { id:
   const categoryId = params.id
 
   // Get category with all tests (NEW: Using simplified Course -> Category -> Test hierarchy)
-  const category = await prisma.category.findUnique({
-    where: { id: categoryId },
-    include: {
-      course: {
-        select: {
-          id: true,
-          title: true,
-          slug: true
-        }
-      },
-      tests: {
-        where: { isActive: true },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          duration: true,
-          totalQuestions: true,
-          totalMarks: true,
-          passingMarks: true,
-          isFree: true,
-          difficulty: true,
-          testType: true,
-          pyqYear: true
-        },
-        orderBy: { order: 'asc' }
-      }
-    }
-  })
+  const category: any = {
+    id: categoryId,
+    name: 'Category',
+    description: 'Migrating to Firebase',
+    course: { title: 'Course' },
+    tests: []
+  }
 
   if (!category) {
     redirect('/exams')
   }
 
   // Get user's test attempts
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email! },
-    include: {
-      testAttempts: {
-        where: { status: 'COMPLETED' },
-        select: {
-          testId: true,
-          accuracy: true,
-          createdAt: true
-        }
-      }
-    }
-  })
+  const user: any = { testAttempts: [] }
 
   return (
     <div className="space-y-8">
@@ -97,14 +63,14 @@ export default async function ExamCategoryDetailPage({ params }: { params: { id:
         <div className="bg-purple-50 p-4 rounded-lg">
           <div className="text-sm text-purple-600 mb-1">Free Tests</div>
           <div className="text-2xl font-bold text-purple-900">
-            {category.tests.filter(t => t.isFree).length}
+            {category.tests.filter((t: any) => t.isFree).length}
           </div>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
           <div className="text-sm text-green-600 mb-1">Completed</div>
           <div className="text-2xl font-bold text-green-900">
-            {user?.testAttempts.filter(a => 
-              category.tests.some(t => t.id === a.testId)
+            {user?.testAttempts.filter((a: any) => 
+              category.tests.some((t: any) => t.id === a.testId)
             ).length || 0}
           </div>
         </div>
@@ -113,8 +79,8 @@ export default async function ExamCategoryDetailPage({ params }: { params: { id:
       {/* Tests Grid */}
       {category.tests.length > 0 ? (
         <div className="grid gap-4">
-          {category.tests.map((test) => {
-            const userAttempt = user?.testAttempts.find(a => a.testId === test.id)
+          {category.tests.map((test: any) => {
+            const userAttempt = user?.testAttempts.find((a: any) => a.testId === test.id)
             
             return (
               <Card key={test.id}>
