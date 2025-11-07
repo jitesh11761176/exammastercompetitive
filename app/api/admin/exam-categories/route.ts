@@ -30,7 +30,7 @@ export async function GET() {
     })
 
     // Map to old category format for compatibility
-    const categories = courses.map(course => ({
+    const categories = courses.map((course: any) => ({
       id: course.id,
       name: course.title,
       slug: course.slug,
