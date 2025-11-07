@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection - allow creation for admin setup and read for auth checks
+    match /users/{userId} {
+      allow read: if true;  // Allow reading user data (needed for role checks)
+      allow create: if true;  // Allow creating users (for admin setup)
+      allow update: if request.auth != null && 
+                      (request.auth.token.email == userId || 
+                       get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN');
+      allow delete: if request.auth != null && 
+                      get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Courses collection
+    match /courses/{courseId} {
+      allow read: if true;  // Public read access
+      allow write: if request.auth != null && 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Categories collection
+    match /categories/{categoryId} {
+      allow read: if true;  // Public read access
+      allow write: if request.auth != null && 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Tests collection
+    match /tests/{testId} {
+      allow read: if true;  // Public read access
+      allow write: if request.auth != null && 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Questions collection
+    match /questions/{questionId} {
+      allow read: if request.auth != null;  // Only authenticated users
+      allow write: if request.auth != null && 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Test attempts collection
+    match /testAttempts/{attemptId} {
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.token.email || 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN');
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.token.email;
+      allow update: if request.auth != null && resource.data.userId == request.auth.token.email;
+      allow delete: if request.auth != null && 
+                      get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Enrollments collection
+    match /enrollments/{enrollmentId} {
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.token.email || 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN');
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.token.email;
+      allow update: if request.auth != null && 
+                      (resource.data.userId == request.auth.token.email || 
+                       get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN');
+      allow delete: if request.auth != null && 
+                      get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+    
+    // Analytics collection
+    match /analytics/{analyticsId} {
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.token.email || 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN');
+      allow write: if request.auth != null;
+    }
+    
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                     get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN';
+    }
+  }
+}
