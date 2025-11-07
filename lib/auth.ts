@@ -2,6 +2,15 @@ import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 
 export function getAuthOptions(): NextAuthOptions {
+  // Validate required environment variables
+  if (!process.env.NEXTAUTH_SECRET) {
+    console.error('[NextAuth] NEXTAUTH_SECRET is not set!')
+  }
+  
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.warn('[NextAuth] Google OAuth credentials are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.')
+  }
+
   return {
     providers: [
       GoogleProvider({
@@ -105,14 +114,6 @@ export function getAuthOptions(): NextAuthOptions {
   }
 }
 
-// Lazy-loaded authOptions to prevent build-time evaluation
-let _authOptions: NextAuthOptions | undefined
-
-export const authOptions: NextAuthOptions = new Proxy({} as NextAuthOptions, {
-  get(_target, prop) {
-    if (!_authOptions) {
-      _authOptions = getAuthOptions()
-    }
-    return (_authOptions as any)[prop]
-  }
-})
+// Export both function and static options for different use cases
+// Use getAuthOptions() in API routes, authOptions elsewhere
+export const authOptions = getAuthOptions()
