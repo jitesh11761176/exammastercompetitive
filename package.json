@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "make-admin": "tsx scripts/make-admin.ts"
+    "make-admin": "tsx scripts/make-admin.ts",
+    "check-env": "tsx scripts/check-env.ts"
   },
   "dependencies": {
     "firebase": "^11.0.0",

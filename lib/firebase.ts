@@ -12,9 +12,14 @@ const requiredEnvVars = [
   'NEXT_PUBLIC_FIREBASE_APP_ID',
 ];
 
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
+// Check if we're in a build environment and skip validation if env vars aren't available
+const isBuildTime = !process.env.NEXT_PUBLIC_FIREBASE_API_KEY && process.env.NODE_ENV !== 'production';
+
+if (!isBuildTime) {
+  for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+      throw new Error(`Missing required environment variable: ${envVar}`);
+    }
   }
 }
 

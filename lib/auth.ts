@@ -1,6 +1,5 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import { getDocumentById } from './firestore-helpers'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -24,8 +23,9 @@ export const authOptions: NextAuthOptions = {
         token.id = (user as any).id || token.sub
         token.email = user.email
 
-        // Fetch user role from Firestore
+        // Fetch user role from Firestore (only at runtime)
         try {
+          const { getDocumentById } = await import('./firestore-helpers')
           const userId = token.email as string // Use email as user ID
           const userDoc = await getDocumentById('users', userId)
           token.role = userDoc?.role || 'STUDENT'
