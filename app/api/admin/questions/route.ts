@@ -31,14 +31,14 @@ export async function GET(request: NextRequest) {
         select: { id: true }
       })
       
-      const subjectIds = subjects.map(s => s.id)
+      const subjectIds = subjects.map((s: any) => s.id)
       
       const topics = await prisma.topic.findMany({
         where: { subjectId: { in: subjectIds } },
         select: { id: true }
       })
       
-      where.topicId = { in: topics.map(t => t.id) }
+      where.topicId = { in: topics.map((t: any) => t.id) }
     }
 
     // Get questions with relations

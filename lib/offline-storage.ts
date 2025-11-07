@@ -215,7 +215,7 @@ export class OfflineStorage {
 
     try {
       await onSync(unsyncedAnswers)
-      const answerIds = unsyncedAnswers.map((a) => a.id!).filter(Boolean)
+      const answerIds = unsyncedAnswers.map((a: any) => a.id!).filter(Boolean)
       await this.markAnswersSynced(answerIds)
     } catch (error) {
       console.error('Failed to sync answers:', error)

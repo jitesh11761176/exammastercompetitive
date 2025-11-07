@@ -151,7 +151,7 @@ export async function exportAuditLogs(
       'IP Address',
     ]
     
-    const rows = logs.map(log => [
+    const rows = logs.map((log: any) => [
       log.createdAt.toISOString(),
       log.userId || '',
       log.userEmail || '',
@@ -162,7 +162,7 @@ export async function exportAuditLogs(
       log.ipAddress || '',
     ])
     
-    return [headers, ...rows].map(row => row.join(',')).join('\n')
+    return [headers, ...rows].map((row: any) => row.join(',')).join('\n')
   }
   
   return JSON.stringify(logs, null, 2)

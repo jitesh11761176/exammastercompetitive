@@ -43,23 +43,23 @@ class Logger {
   info(message: string, context?: any) {
     console.info(`[INFO] ${message}`, context)
     if (context?.persist) {
-      this.persistLog('INFO', message, context)
+      this.persistLog(ErrorSeverity.INFO, message, context)
     }
   }
 
   warn(message: string, context?: any) {
     console.warn(`[WARN] ${message}`, context)
-    this.persistLog('WARNING', message, context)
+    this.persistLog(ErrorSeverity.WARNING, message, context)
   }
 
   error(message: string, context?: any) {
     console.error(`[ERROR] ${message}`, context)
-    this.persistLog('ERROR', message, context)
+    this.persistLog(ErrorSeverity.ERROR, message, context)
   }
 
   critical(message: string, context?: any) {
     console.error(`[CRITICAL] ${message}`, context)
-    this.persistLog('CRITICAL', message, context)
+    this.persistLog(ErrorSeverity.CRITICAL, message, context)
     
     // Send alert for critical errors
     this.sendAlert(message, context)

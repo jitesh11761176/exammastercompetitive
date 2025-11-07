@@ -1,23 +1,19 @@
 import { firestore } from './firebase'
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
   query, 
   where, 
   orderBy, 
   limit,
   QueryConstraint,
-  DocumentData,
-  CollectionReference,
-  DocumentReference
-} from 'firebase/firestore'
-
-// Helper function to get a document by ID
+  DocumentData
+} from 'firebase/firestore'// Helper function to get a document by ID
 export async function getDocumentById<T = DocumentData>(collectionName: string, id: string): Promise<T | null> {
   const docRef = doc(firestore, collectionName, id)
   const docSnap = await getDoc(docRef)

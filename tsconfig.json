@@ -2,9 +2,12 @@
   "compilerOptions": {
     // Language and Environment
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "jsx": "preserve",
-    
     // Module Resolution
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -12,7 +15,6 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    
     // Type Checking - Strict Mode
     "strict": true,
     "noUnusedLocals": true,
@@ -20,29 +22,36 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
     "forceConsistentCasingInFileNames": true,
-    
     // JavaScript Support
     "allowJs": true,
     "checkJs": false,
-    
     // Emit
     "noEmit": true,
     "incremental": true,
-    
     // Interop Constraints
     "skipLibCheck": true,
-    
     // Path Mapping
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/components/*": ["./components/*"],
-      "@/lib/*": ["./lib/*"],
-      "@/app/*": ["./app/*"],
-      "@/types/*": ["./types/*"],
-      "@/prisma/*": ["./prisma/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@/components/*": [
+        "./components/*"
+      ],
+      "@/lib/*": [
+        "./lib/*"
+      ],
+      "@/app/*": [
+        "./app/*"
+      ],
+      "@/types/*": [
+        "./types/*"
+      ],
+      "@/prisma/*": [
+        "./prisma/*"
+      ]
     },
-    
     // Next.js Specific
     "plugins": [
       {
@@ -54,7 +63,8 @@
     "next-env.d.ts",
     "global.d.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

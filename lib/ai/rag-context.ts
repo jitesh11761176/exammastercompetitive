@@ -51,7 +51,7 @@ export async function getRAGContext(query: string, questionId?: string): Promise
 
       if (relatedQuestions.length > 0) {
         context += `\nRelated Questions & Solutions:\n`
-        relatedQuestions.forEach((q, i) => {
+        relatedQuestions.forEach((q: any, i: number) => {
           context += `${i + 1}. ${q.questionText.slice(0, 100)}...\n`
           context += `Solution: ${q.explanation.slice(0, 200)}...\n\n`
         })
@@ -89,7 +89,7 @@ export async function getRAGContext(query: string, questionId?: string): Promise
 
       if (relevantQuestions.length > 0) {
         context += `Relevant Questions & Explanations:\n\n`
-        relevantQuestions.forEach((q, i) => {
+        relevantQuestions.forEach((q: any, i: number) => {
           context += `${i + 1}. Topic: ${q.topic.subject.name} - ${q.topic.name}\n`
           context += `Q: ${q.questionText.slice(0, 150)}...\n`
           context += `A: ${q.explanation.slice(0, 250)}...\n\n`

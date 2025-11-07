@@ -119,7 +119,7 @@ export async function calculateTestScore(
         case 'MSQ':
           const userAnswers: string[] = (
             Array.isArray(answer.answer) ? answer.answer : [answer.answer]
-          ).map((v) => String(v))
+          ).map((v: any) => String(v))
           const correctOpts = question.correctOptions || []
           
           // Check if completely correct
@@ -267,7 +267,7 @@ export function calculateSectionScores(
   sections: any[],
   detailedReport: any[]
 ): any[] {
-  return sections.map(section => {
+  return sections.map((section: any) => {
     const sectionQuestions = detailedReport.filter(r => 
       section.questionIds.includes(r.questionId)
     )

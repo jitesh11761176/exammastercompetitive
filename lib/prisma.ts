@@ -7,7 +7,7 @@
 // TODO: Migrate all files importing this to use Firebase Firestore
 
 export const prisma = new Proxy({} as any, {
-  get: (target, prop) => {
+  get: (_target, prop) => {
     throw new Error(
       `Prisma is no longer configured in this project. ` +
       `Attempted to access: prisma.${String(prop)}. ` +

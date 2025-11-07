@@ -25,7 +25,7 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json(user.interestedCategories.map(uc => uc.category))
+    return NextResponse.json(user.interestedCategories.map((uc: any) => uc.category))
   } catch (error) {
     console.error('Error fetching user categories:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

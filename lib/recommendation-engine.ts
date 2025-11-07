@@ -186,7 +186,7 @@ export async function getWeakTopicRecommendations(userId: string) {
       const accuracy = (stats.correct / stats.total) * 100
       return stats.total >= 5 && accuracy < 60
     })
-    .map(([topicId, stats]) => ({
+    .map(([topicId, stats]: any) => ({
       topicId,
       name: stats.name,
       subject: stats.subject,

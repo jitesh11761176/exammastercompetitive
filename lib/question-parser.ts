@@ -90,7 +90,7 @@ export function extractQuestions(text: string): ParsedQuestion[] {
  * Merge questions with answer key
  */
 export function mergeAnswerKey(questions: ParsedQuestion[], answerKey: AnswerKey): ParsedQuestion[] {
-  return questions.map(q => ({
+  return questions.map((q: any) => ({
     ...q,
     correctOption: answerKey[q.questionNumber] || null
   }));
@@ -126,7 +126,7 @@ export function parseExamContent(text: string): ParsedQuestion[] {
   const questionsWithAnswers = mergeAnswerKey(questions, answerKey);
   
   // Add section/subject context
-  const questionsWithContext = questionsWithAnswers.map(q => ({
+  const questionsWithContext = questionsWithAnswers.map((q: any) => ({
     ...q,
     ...detectSection(text, q.questionNumber)
   }));
@@ -138,7 +138,7 @@ export function parseExamContent(text: string): ParsedQuestion[] {
  * Convert parsed questions to database format
  */
 export function convertToDBFormat(questions: ParsedQuestion[], category: string = 'General') {
-  return questions.map(q => ({
+  return questions.map((q: any) => ({
     questionText: q.questionText,
     optionA: q.optionA,
     optionB: q.optionB,
