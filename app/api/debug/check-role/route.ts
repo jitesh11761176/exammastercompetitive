@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 // Dynamically import firestore-helpers
 const getFirestoreHelpers = () => import("@/lib/firestore-helpers");
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const firestoreHelpers = await getFirestoreHelpers();
