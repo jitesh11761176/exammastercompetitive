@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+import { getUserRole } from './user-role'
 
 export function getAuthOptions(): NextAuthOptions {
   // Validate required environment variables
@@ -27,44 +28,23 @@ export function getAuthOptions(): NextAuthOptions {
     ],
     callbacks: {
       async jwt({ token, user }) {
-        // Only process during actual sign-in with user object
-        if (user) {
-          token.id = (user as any).id || token.sub
-          token.email = user.email
-
-          // Try to fetch role from Firestore only on initial sign-in
-          try {
-            const { getDocumentById } = await import('./firestore-helpers')
-            const userId = user.email as string
-            const userDoc = await getDocumentById('users', userId)
-            token.role = userDoc?.role || 'STUDENT'
-          } catch (error) {
-            console.warn('[Auth] Failed to fetch role from Firestore:', error)
-            token.role = 'STUDENT'
-          }
+        if (user?.email) {
+          // On initial sign-in, fetch the role and add it to the token
+          const role = await getUserRole(user.email);
+          token.role = role || 'STUDENT';
+          token.id = user.id;
+          token.email = user.email;
         }
-        
-        // On subsequent calls (not sign-in), don't try to fetch from Firestore
-        // Just keep existing role
-        return token
+        return token;
       },
       async session({ session, token }) {
-        if (session.user && token) {
-          session.user.id = (token.id as string) || (token.sub as string)
-          session.user.role = (token.role as 'STUDENT' | 'INSTRUCTOR' | 'ADMIN') || 'STUDENT'
-          
-          // Fetch fresh role from Firestore on every session check
-          try {
-            const { getDocumentById } = await import('./firestore-helpers')
-            const userId = session.user.email as string
-            const userDoc = await getDocumentById('users', userId)
-            session.user.role = userDoc?.role || 'STUDENT'
-          } catch (error) {
-            // Keep token role if fetch fails
-            console.warn('[Auth] Failed to refresh role from Firestore:', error)
-          }
+        if (session.user) {
+          // On every session check, fetch the latest role to ensure it's fresh
+          const role = token.email ? await getUserRole(token.email) : 'STUDENT';
+          session.user.role = role || 'STUDENT';
+          session.user.id = token.id as string;
         }
-        return session
+        return session;
       },
       async signIn({ user, account }) {
         try {
@@ -121,7 +101,7 @@ export function getAuthOptions(): NextAuthOptions {
       strategy: 'jwt',
       maxAge: 60 * 5, // 5 minutes - shorter to pick up role changes faster
     },
-    debug: true,
+    debug: process.env.NODE_ENV !== 'production',
   }
 }
 
