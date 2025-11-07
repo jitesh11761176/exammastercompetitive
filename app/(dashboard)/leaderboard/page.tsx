@@ -1,7 +1,5 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { firestore } from '@/lib/firebase'
-import { collection, query, orderBy, limit, getDocs, where, getCountFromServer } from 'firebase/firestore'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, Zap } from 'lucide-react'
@@ -25,29 +23,19 @@ export default async function LeaderboardPage() {
     redirect('/login')
   }
 
-  const usersCollection = collection(firestore, 'users');
-
-  // Get top 50 users
-  const topUsersQuery = query(usersCollection, orderBy('gamification.totalPoints', 'desc'), limit(50));
-  const topUsersSnapshot = await getDocs(topUsersQuery);
-  const topUsers: User[] = topUsersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-
-  // Get current user
-  const currentUserQuery = query(usersCollection, where('email', '==', session.user.email));
-  const currentUserSnapshot = await getDocs(currentUserQuery);
-  const currentUser: User | null = currentUserSnapshot.empty ? null : { id: currentUserSnapshot.docs[0].id, ...currentUserSnapshot.docs[0].data() } as User;
-
-  let currentUserRank = -1;
-  if (currentUser?.gamification?.totalPoints) {
-    const rankQuery = query(usersCollection, where('gamification.totalPoints', '>', currentUser.gamification.totalPoints));
-    const rankSnapshot = await getCountFromServer(rankQuery);
-    currentUserRank = rankSnapshot.data().count + 1;
-  } else if (currentUser) {
-    // If user exists but has no points, count all users with points
-    const rankQuery = query(usersCollection, where('gamification.totalPoints', '>', 0));
-    const rankSnapshot = await getCountFromServer(rankQuery);
-    currentUserRank = rankSnapshot.data().count + 1;
+  // TODO: Replace with Firestore query
+  const topUsers: User[] = []
+  const currentUser: User | null = {
+    id: session.user.email,
+    name: session.user.name || null,
+    image: session.user.image || null,
+    email: session.user.email,
+    gamification: {
+      totalPoints: 0,
+      currentLevel: 1
+    }
   }
+  const currentUserRank = 0
 
 
   return (

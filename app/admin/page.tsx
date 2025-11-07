@@ -1,33 +1,17 @@
 import { requireAdmin } from '@/lib/admin-check'
-import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText, Users, BookOpen, TrendingUp } from 'lucide-react'
 
 export default async function AdminDashboard() {
   await requireAdmin()
   
-  const stats = await Promise.all([
-    prisma.test.count(),
-    prisma.user.count(),
-    prisma.question.count(),
-    prisma.testAttempt.count({ where: { status: 'COMPLETED' } }),
-  ])
+  // TODO: Replace with Firestore queries
+  const totalTests = 0
+  const totalUsers = 0
+  const totalQuestions = 0
+  const totalAttempts = 0
 
-  const [totalTests, totalUsers, totalQuestions, totalAttempts] = stats
-
-  const recentTests = await prisma.test.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      title: true,
-      difficulty: true,
-      totalQuestions: true,
-      _count: {
-        select: { attempts: true },
-      },
-    },
-  })
+  const recentTests: any[] = []
 
   const cards = [
     {

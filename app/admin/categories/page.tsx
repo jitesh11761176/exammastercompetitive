@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
@@ -15,30 +14,8 @@ export default async function AdminCategoriesPage() {
     redirect('/login')
   }
 
-  // Get all categories with counts
-  const categories = await prisma.category.findMany({
-    orderBy: { name: 'asc' },
-    include: {
-      subjects: {
-        include: {
-          topics: {
-            include: {
-              _count: {
-                select: { questions: true }
-              }
-            }
-          }
-        }
-      },
-      tests: true,
-      _count: {
-        select: {
-          subjects: true,
-          tests: true
-        }
-      }
-    }
-  })
+  // TODO: Replace with Firestore query
+  const categories: any[] = []
 
   return (
     <div className="container mx-auto py-8 max-w-7xl">
@@ -58,10 +35,10 @@ export default async function AdminCategoriesPage() {
       </div>
 
       <div className="grid gap-6">
-        {categories.map((category) => {
+        {categories.map((category: any) => {
           // Calculate total questions across all subjects and topics
-          const totalQuestions = category.subjects.reduce((sum, subject) => {
-            return sum + subject.topics.reduce((topicSum, topic) => {
+          const totalQuestions = category.subjects.reduce((sum: any, subject: any) => {
+            return sum + subject.topics.reduce((topicSum: any, topic: any) => {
               return topicSum + topic._count.questions
             }, 0)
           }, 0)
@@ -130,7 +107,7 @@ export default async function AdminCategoriesPage() {
                       <span className="text-sm font-medium">Topics</span>
                     </div>
                     <p className="text-2xl font-bold text-orange-900">
-                      {category.subjects.reduce((sum, s) => sum + s.topics.length, 0)}
+                      {category.subjects.reduce((sum: any, s: any) => sum + s.topics.length, 0)}
                     </p>
                   </div>
                 </div>
@@ -140,8 +117,8 @@ export default async function AdminCategoriesPage() {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-gray-700 mb-3">Subjects:</h3>
                     <div className="grid gap-2">
-                      {category.subjects.map((subject) => {
-                        const subjectQuestions = subject.topics.reduce((sum, topic) => {
+                      {category.subjects.map((subject: any) => {
+                        const subjectQuestions = subject.topics.reduce((sum: any, topic: any) => {
                           return sum + topic._count.questions
                         }, 0)
 
@@ -189,7 +166,7 @@ export default async function AdminCategoriesPage() {
                   <div className="mt-6 pt-6 border-t">
                     <h3 className="font-semibold text-gray-700 mb-3">Tests ({category.tests.length}):</h3>
                     <div className="grid gap-2">
-                      {category.tests.slice(0, 5).map((test) => (
+                      {category.tests.slice(0, 5).map((test: any) => (
                         <div
                           key={test.id}
                           className="flex items-center justify-between p-3 bg-green-50 rounded-lg"

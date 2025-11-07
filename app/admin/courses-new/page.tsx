@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
@@ -14,28 +13,8 @@ export default async function AdminCoursesPage() {
     redirect('/login')
   }
 
-  // Get all courses with their categories and tests count
-  const courses = await prisma.course.findMany({
-    orderBy: { order: 'asc' },
-    include: {
-      categories: {
-        include: {
-          _count: {
-            select: {
-              tests: true,
-              subjects: true
-            }
-          }
-        }
-      },
-      _count: {
-        select: {
-          categories: true,
-          enrollments: true
-        }
-      }
-    }
-  })
+  // TODO: Replace with Firestore query
+  const courses: any[] = []
 
   return (
     <div className="container mx-auto py-8 max-w-7xl">
@@ -53,10 +32,10 @@ export default async function AdminCoursesPage() {
       </div>
 
       <div className="grid gap-6">
-        {courses.map((course) => {
+        {courses.map((course: any) => {
           // Calculate total tests across all categories
-          const totalTests = course.categories.reduce((sum, cat) => sum + cat._count.tests, 0)
-          const totalSubjects = course.categories.reduce((sum, cat) => sum + cat._count.subjects, 0)
+          const totalTests = course.categories.reduce((sum: any, cat: any) => sum + cat._count.tests, 0)
+          const totalSubjects = course.categories.reduce((sum: any, cat: any) => sum + cat._count.subjects, 0)
 
           return (
             <Card key={course.id}>
@@ -128,7 +107,7 @@ export default async function AdminCoursesPage() {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-gray-700 mb-3">Categories:</h3>
                     <div className="grid gap-2">
-                      {course.categories.map((category) => (
+                      {course.categories.map((category: any) => (
                         <div
                           key={category.id}
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"

@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
@@ -14,20 +13,8 @@ export default async function AdminTestsPage() {
     redirect('/login')
   }
 
-  // Get ALL tests for admin view
-  const tests = await prisma.test.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      category: {
-        select: {
-          name: true,
-        }
-      },
-      _count: {
-        select: { attempts: true }
-      }
-    }
-  })
+  // TODO: Replace with Firestore query
+  const tests: any[] = []
 
   return (
     <div className="space-y-8">
