@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Trophy, Award, Target, Zap, BookOpen, ArrowRight, TrendingUp } from 'lucide-react'
+import { Trophy, Award, Target, Zap, BookOpen, TrendingUp } from 'lucide-react'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
