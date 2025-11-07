@@ -19,8 +19,10 @@ export default async function ProfilePage() {
   // Placeholder data during migration
   const user = {
     name: session.user.name,
+    email: session.user.email,
     image: (session.user as any).image || null,
-    gamification: { currentLevel: 1, totalPoints: 0 },
+    createdAt: new Date(), // Default to current date during migration
+    gamification: { currentLevel: 1, totalPoints: 0, dailyStreak: 0 },
     userBadges: [] as any[],
     testAttempts: [] as any[],
   }
