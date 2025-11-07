@@ -13,7 +13,7 @@ const requiredEnvVars = [
 ];
 
 // Check if we're in a build environment and skip validation if env vars aren't available
-const isBuildTime = !process.env.NEXT_PUBLIC_FIREBASE_API_KEY && process.env.NODE_ENV !== 'production';
+const isBuildTime = typeof window === 'undefined' && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 if (!isBuildTime) {
   for (const envVar of requiredEnvVars) {
@@ -33,16 +33,19 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase only if not in build time
+let app: any = null
+let firestore: any = null
+let analytics: any = null
 
-// Initialize Firestore
-const firestore = getFirestore(app);
+if (!isBuildTime) {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  firestore = getFirestore(app);
 
-// Initialize Analytics (only in browser environment)
-let analytics;
-if (typeof window !== 'undefined') {
-  analytics = getAnalytics(app);
+  // Initialize Analytics (only in browser environment)
+  if (typeof window !== 'undefined') {
+    analytics = getAnalytics(app);
+  }
 }
 
 export { app, firestore, analytics };
