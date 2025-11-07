@@ -99,7 +99,7 @@ export function getAuthOptions(): NextAuthOptions {
     },
     session: {
       strategy: 'jwt',
-      maxAge: 60 * 5, // 5 minutes - shorter to pick up role changes faster
+      maxAge: 60 * 1, // 1 minute - very short for debugging role changes
     },
     debug: process.env.NODE_ENV !== 'production',
   }
