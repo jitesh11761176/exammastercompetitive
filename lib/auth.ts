@@ -26,25 +26,26 @@ export function getAuthOptions(): NextAuthOptions {
       }),
     ],
     callbacks: {
-      async jwt({ token, user }) {
-        // Initial sign in
-        if (user) {
+      async jwt({ token, user, trigger }) {
+        // Initial sign in OR token update
+        if (user || trigger === 'update') {
           // token.sub is the stable user id when no DB adapter is used
-          token.id = (user as any).id || token.sub
-          token.email = user.email
-
-          // Fetch user role from Firestore (only at runtime)
-          try {
-            const { getDocumentById } = await import('./firestore-helpers')
-            const userId = token.email as string // Use email as user ID
-            const userDoc = await getDocumentById('users', userId)
-            token.role = userDoc?.role || 'STUDENT'
-          } catch (error) {
-            // During build time or if Firestore is not available, default to STUDENT
-            console.warn('Failed to fetch user role from Firestore:', error)
-            token.role = 'STUDENT' // Default role
-          }
+          token.id = (user as any)?.id || token.sub || token.id
+          token.email = user?.email || token.email
         }
+
+        // ALWAYS fetch fresh role from Firestore (not just on initial sign in)
+        try {
+          const { getDocumentById } = await import('./firestore-helpers')
+          const userId = token.email as string // Use email as user ID
+          const userDoc = await getDocumentById('users', userId)
+          token.role = userDoc?.role || 'STUDENT'
+        } catch (error) {
+          // During build time or if Firestore is not available, default to STUDENT
+          console.warn('Failed to fetch user role from Firestore:', error)
+          token.role = token.role || 'STUDENT' // Keep existing or default
+        }
+        
         return token
       },
       async session({ session, token }) {
