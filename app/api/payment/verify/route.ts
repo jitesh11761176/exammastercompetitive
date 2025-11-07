@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { PaymentStatus } from '@prisma/client'
 import { verifyRazorpaySignature } from '@/lib/razorpay'
+
+// Define PaymentStatus enum locally (was from Prisma)
+enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
 
 // POST /api/payment/verify - Verify Razorpay payment
 export async function POST(req: NextRequest) {

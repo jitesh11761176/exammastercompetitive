@@ -1,5 +1,12 @@
 import { prisma } from '@/lib/prisma'
-import { ErrorSeverity } from '@prisma/client'
+
+// Define ErrorSeverity enum locally (was from Prisma)
+enum ErrorSeverity {
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+}
 
 // Custom logger with database persistence
 class Logger {

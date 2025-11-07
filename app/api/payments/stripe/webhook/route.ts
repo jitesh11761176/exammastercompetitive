@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
-import { PaymentStatus } from '@prisma/client'
 import Stripe from 'stripe'
+
+// Define PaymentStatus enum locally (was from Prisma)
+enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
 
 // Configure route to handle raw body for Stripe webhook signature verification
 export const runtime = 'nodejs'
