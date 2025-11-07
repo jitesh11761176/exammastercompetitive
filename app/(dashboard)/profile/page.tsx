@@ -27,7 +27,6 @@ export default async function ProfilePage() {
 
   const currentLevel = 1
   const currentPoints = 0
-  const pointsForCurrentLevel = 0
   const pointsForNextLevel = 100
   const progressToNextLevel = 0
 
