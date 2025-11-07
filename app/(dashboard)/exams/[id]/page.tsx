@@ -1,14 +1,35 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
-import { Clock, FileText, Target, ArrowLeft, Trophy, TrendingUp } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default async function CategoryTestsPage({ params }: { params: { id: string } }) {
+export default async function ExamDetailPage({ params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user) {
+    redirect('/login')
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Exam Details</h1>
+        <p className="text-gray-600 mt-2">Exam ID: {params.id}</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Migration in Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            This page is being migrated to Firebase. Full functionality coming soon!
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
   const session = await getServerSession(authOptions)
   
   if (!session?.user) {
