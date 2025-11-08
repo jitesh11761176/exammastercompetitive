@@ -1,4 +1,4 @@
-import { firestore } from './firebase'
+import { getFirebaseFirestore } from './firebase'
 import {
   collection,
   doc,
@@ -13,8 +13,11 @@ import {
   limit,
   QueryConstraint,
   DocumentData
-} from 'firebase/firestore'// Helper function to get a document by ID
+} from 'firebase/firestore'
+
+// Helper function to get a document by ID
 export async function getDocumentById<T = DocumentData>(collectionName: string, id: string): Promise<T | null> {
+  const firestore = getFirebaseFirestore();
   if (!firestore) {
     throw new Error('Firestore not initialized - this function can only be called at runtime')
   }
@@ -29,6 +32,7 @@ export async function getDocumentById<T = DocumentData>(collectionName: string, 
 
 // Helper function to get all documents from a collection
 export async function getAllDocuments<T = DocumentData>(collectionName: string): Promise<T[]> {
+  const firestore = getFirebaseFirestore();
   if (!firestore) {
     throw new Error('Firestore not initialized - this function can only be called at runtime')
   }
@@ -42,6 +46,7 @@ export async function queryDocuments<T = DocumentData>(
   collectionName: string, 
   ...constraints: QueryConstraint[]
 ): Promise<T[]> {
+  const firestore = getFirebaseFirestore();
   if (!firestore) {
     throw new Error('Firestore not initialized - this function can only be called at runtime')
   }
@@ -53,6 +58,7 @@ export async function queryDocuments<T = DocumentData>(
 
 // Helper function to create or update a document
 export async function setDocument(collectionName: string, id: string, data: any): Promise<void> {
+  const firestore = getFirebaseFirestore();
   if (!firestore) {
     throw new Error('Firestore not initialized - this function can only be called at runtime')
   }
@@ -62,6 +68,7 @@ export async function setDocument(collectionName: string, id: string, data: any)
 
 // Helper function to update a document
 export async function updateDocument(collectionName: string, id: string, data: any): Promise<void> {
+  const firestore = getFirebaseFirestore();
   if (!firestore) {
     throw new Error('Firestore not initialized - this function can only be called at runtime')
   }
@@ -71,6 +78,7 @@ export async function updateDocument(collectionName: string, id: string, data: a
 
 // Helper function to delete a document
 export async function deleteDocument(collectionName: string, id: string): Promise<void> {
+  const firestore = getFirebaseFirestore();
   if (!firestore) {
     throw new Error('Firestore not initialized - this function can only be called at runtime')
   }

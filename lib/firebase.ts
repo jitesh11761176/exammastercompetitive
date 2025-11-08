@@ -33,19 +33,65 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase only if not in build time
-let app: any = null
-let firestore: any = null
-let analytics: any = null
+// Lazy initialization - only initialize when actually accessed at runtime
+let _app: any = null;
+let _firestore: any = null;
+let _analytics: any = null;
 
-if (!isBuildTime) {
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  firestore = getFirestore(app);
-
-  // Initialize Analytics (only in browser environment)
-  if (typeof window !== 'undefined') {
-    analytics = getAnalytics(app);
+function ensureInitialized() {
+  if (_app) return _app;
+  
+  console.log('[Firebase] Initializing Firebase app...');
+  
+  // During build time, don't initialize
+  if (isBuildTime) {
+    console.log('[Firebase] Skipping initialization - build time');
+    return null;
+  }
+  
+  try {
+    _app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    console.log('[Firebase] App initialized successfully');
+    return _app;
+  } catch (error) {
+    console.error('[Firebase] Failed to initialize:', error);
+    return null;
   }
 }
 
-export { app, firestore, analytics };
+// Getter for app
+export const getFirebaseApp = () => {
+  if (!_app) {
+    ensureInitialized();
+  }
+  return _app;
+};
+
+// Getter for firestore
+export const getFirebaseFirestore = () => {
+  if (!_firestore) {
+    const app = getFirebaseApp();
+    if (app) {
+      _firestore = getFirestore(app);
+      console.log('[Firebase] Firestore initialized');
+    }
+  }
+  return _firestore;
+};
+
+// Getter for analytics
+export const getFirebaseAnalytics = () => {
+  if (!_analytics && typeof window !== 'undefined') {
+    const app = getFirebaseApp();
+    if (app) {
+      _analytics = getAnalytics(app);
+      console.log('[Firebase] Analytics initialized');
+    }
+  }
+  return _analytics;
+};
+
+// Legacy exports for backwards compatibility
+export const app = getFirebaseApp();
+export const firestore = getFirebaseFirestore();
+export const analytics = typeof window !== 'undefined' ? getFirebaseAnalytics() : null;
