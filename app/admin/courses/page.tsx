@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'firebase/firestore'
-import { firestore } from '@/lib/firebase'
+import { getFirebaseFirestore } from '@/lib/firebase'
 
 interface Course {
   id: string
@@ -66,6 +66,7 @@ export default function CoursesPage() {
   const fetchCourses = async () => {
     try {
       setLoading(true)
+      const firestore = getFirebaseFirestore()
       const coursesRef = collection(firestore, 'courses')
       const q = query(coursesRef, orderBy('order', 'asc'))
       const snapshot = await getDocs(q)
@@ -88,6 +89,7 @@ export default function CoursesPage() {
     e.preventDefault()
 
     try {
+      const firestore = getFirebaseFirestore()
       // Generate slug from title
       const slug = formData.title
         .toLowerCase()
@@ -164,6 +166,7 @@ export default function CoursesPage() {
     if (!confirm('Are you sure you want to delete this course?')) return
 
     try {
+      const firestore = getFirebaseFirestore()
       const courseRef = doc(firestore, 'courses', id)
       await deleteDoc(courseRef)
       toast.success('Course deleted!')
@@ -176,6 +179,7 @@ export default function CoursesPage() {
 
   const toggleActive = async (course: Course) => {
     try {
+      const firestore = getFirebaseFirestore()
       const courseRef = doc(firestore, 'courses', course.id)
       await updateDoc(courseRef, {
         isActive: !course.isActive,
