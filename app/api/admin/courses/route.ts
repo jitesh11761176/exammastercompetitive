@@ -2,8 +2,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { collection, getDocs, query, orderBy as firestoreOrderBy, getCountFromServer, where } from "firebase/firestore";
+import { getFirebaseFirestore } from "@/lib/firebase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,18 +32,36 @@ export async function GET() {
       }, { status: 401 });
     }
 
-    const data = await prisma.course.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        isActive: true,
-        isFree: true,
-        createdAt: true,
-        _count: { select: { categories: true } },
-      },
-    });
+    const db = getFirebaseFirestore();
+    if (!db) {
+      throw new Error("Firestore not initialized");
+    }
+
+    // Get all courses from Firestore
+    const coursesRef = collection(db, "courses");
+    const coursesQuery = query(coursesRef, firestoreOrderBy("createdAt", "desc"));
+    const coursesSnapshot = await getDocs(coursesQuery);
+
+    const data = await Promise.all(coursesSnapshot.docs.map(async (doc) => {
+      const courseData = doc.data();
+      
+      // Count categories for this course
+      const categoriesRef = collection(db, "categories");
+      const categoriesQuery = query(categoriesRef, where("courseId", "==", doc.id));
+      const categoriesSnapshot = await getCountFromServer(categoriesQuery);
+      
+      return {
+        id: doc.id,
+        title: courseData.title,
+        slug: courseData.slug,
+        isActive: courseData.isActive ?? true,
+        isFree: courseData.isFree ?? false,
+        createdAt: courseData.createdAt,
+        _count: {
+          categories: categoriesSnapshot.data().count
+        }
+      };
+    }));
 
     return NextResponse.json({
       success: true,
@@ -110,12 +129,17 @@ export async function POST(req: Request) {
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "");
 
-    // Check if slug already exists
-    const existingCourse = await prisma.course.findUnique({
-      where: { slug },
-    });
+    const db = getFirebaseFirestore();
+    if (!db) {
+      throw new Error("Firestore not initialized");
+    }
 
-    if (existingCourse) {
+    // Check if slug already exists
+    const coursesRef = collection(db, "courses");
+    const existingQuery = query(coursesRef, where("slug", "==", slug));
+    const existingSnapshot = await getDocs(existingQuery);
+
+    if (!existingSnapshot.empty) {
       return NextResponse.json(
         { 
           success: false,
@@ -125,51 +149,48 @@ export async function POST(req: Request) {
       );
     }
 
-    const course = await prisma.course.create({
-      data: {
-        title,
-        slug,
-        description: description || null,
-        thumbnail: thumbnail || null,
-        icon: icon || null,
-        tags,
-        order,
-        isActive,
-        isFree,
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        isActive: true,
-        isFree: true,
-        createdAt: true,
-      },
-    });
+    // Create new course
+    const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+    const newCourseRef = doc(coursesRef);
+    const courseData = {
+      title,
+      slug,
+      description: description || null,
+      thumbnail: thumbnail || null,
+      icon: icon || null,
+      tags,
+      order,
+      isActive,
+      isFree,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(newCourseRef, courseData);
 
     return NextResponse.json({
       success: true,
       message: "Course created successfully",
-      data: course
+      data: {
+        id: newCourseRef.id,
+        title,
+        slug,
+        isActive,
+        isFree,
+        createdAt: new Date().toISOString(),
+      }
     }, { status: 201 });
   } catch (err: any) {
-    // Prisma error surface for debugging
-    const code = err?.code ?? "";
     console.error("POST /api/admin/courses failed:", {
-      code,
       message: err?.message,
-      meta: err?.meta,
       name: err?.name,
       stack: err?.stack,
-      fullError: JSON.stringify(err, Object.getOwnPropertyNames(err), 2),
     });
     return NextResponse.json(
       { 
         success: false,
         error: err?.message ?? "Server crash", 
-        code, 
-        detail: err?.message ?? null,
-        meta: err?.meta ?? null 
+        detail: err?.message ?? null
       },
       { status: 500 }
     );
