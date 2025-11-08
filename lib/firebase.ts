@@ -66,10 +66,19 @@ function ensureInitialized() {
     const config = getFirebaseConfig();
     
     console.log('[Firebase] Using config for project:', config.projectId);
+    console.log('[Firebase] Config check:', {
+      hasApiKey: !!config.apiKey,
+      hasProjectId: !!config.projectId,
+      hasAuthDomain: !!config.authDomain,
+      hasAppId: !!config.appId,
+    });
     
     // Check if we have minimum required config
     if (!config.apiKey || !config.projectId) {
-      throw new Error('Missing required Firebase configuration (apiKey and projectId)');
+      const missing = [];
+      if (!config.apiKey) missing.push('apiKey (NEXT_PUBLIC_FIREBASE_API_KEY)');
+      if (!config.projectId) missing.push('projectId (NEXT_PUBLIC_FIREBASE_PROJECT_ID)');
+      throw new Error(`Missing required Firebase configuration: ${missing.join(', ')}`);
     }
     
     _app = !getApps().length ? initializeApp(config) : getApp();
@@ -93,10 +102,11 @@ export const getFirebaseApp = () => {
 export const getFirebaseFirestore = () => {
   if (!_firestore) {
     const app = getFirebaseApp();
-    if (app) {
-      _firestore = getFirestore(app);
-      console.log('[Firebase] Firestore initialized');
+    if (!app) {
+      throw new Error('[Firebase] App not initialized. Cannot get Firestore instance.');
     }
+    _firestore = getFirestore(app);
+    console.log('[Firebase] Firestore initialized');
   }
   return _firestore;
 };

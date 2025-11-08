@@ -67,6 +67,9 @@ export default function CoursesPage() {
     try {
       setLoading(true)
       const firestore = getFirebaseFirestore()
+      if (!firestore) {
+        throw new Error('Firestore is not initialized. Please check Firebase configuration.')
+      }
       const coursesRef = collection(firestore, 'courses')
       const q = query(coursesRef, orderBy('order', 'asc'))
       const snapshot = await getDocs(q)
@@ -77,9 +80,9 @@ export default function CoursesPage() {
       })) as Course[]
       
       setCourses(coursesData)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching courses:', error)
-      toast.error('Failed to load courses')
+      toast.error(error.message || 'Failed to load courses')
     } finally {
       setLoading(false)
     }
@@ -90,6 +93,9 @@ export default function CoursesPage() {
 
     try {
       const firestore = getFirebaseFirestore()
+      if (!firestore) {
+        throw new Error('Firestore is not initialized. Please check Firebase configuration.')
+      }
       // Generate slug from title
       const slug = formData.title
         .toLowerCase()
