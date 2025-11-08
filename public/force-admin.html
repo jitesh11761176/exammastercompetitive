@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Admin Role</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        #result {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Force Admin Role</h1>
+    <p>Click the button below to force your current logged-in account to have ADMIN role.</p>
+    
+    <button onclick="forceAdminRole()">Set Me As ADMIN</button>
+    
+    <div id="result"></div>
+
+    <script>
+        async function forceAdminRole() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Processing...';
+            
+            try {
+                const response = await fetch('/api/admin/force-role', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.textContent = 'SUCCESS!\n\n' + JSON.stringify(data, null, 2);
+                    
+                    setTimeout(() => {
+                        alert('Role updated! Redirecting to dashboard...');
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.textContent = 'ERROR:\n\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = 'ERROR:\n\n' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
