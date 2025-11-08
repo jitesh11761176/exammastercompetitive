@@ -25,13 +25,7 @@ function isBuildTime() {
   return true;
 }
 
-// Validate environment variables only when trying to initialize
-function validateEnvVars() {
-  const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
-  if (missing.length > 0) {
-    throw new Error(`Missing required Firebase environment variables: ${missing.join(', ')}`);
-  }
-}
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -52,7 +46,13 @@ function ensureInitialized() {
   if (_app) return _app;
   
   console.log('[Firebase] Initializing Firebase app...');
-  console.log('[Firebase] Environment check - window:', typeof window !== 'undefined', 'API key exists:', !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+  console.log('[Firebase] Environment check:', {
+    isWindow: typeof window !== 'undefined',
+    hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+  });
   
   // During build time, don't initialize
   if (isBuildTime()) {
@@ -61,9 +61,16 @@ function ensureInitialized() {
   }
   
   try {
-    validateEnvVars();
+    // Log which env vars are missing
+    const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
+    if (missing.length > 0) {
+      console.error('[Firebase] Missing environment variables:', missing);
+      console.error('[Firebase] Available env var prefixes:', Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_FIREBASE')));
+      throw new Error(`Missing Firebase env vars: ${missing.join(', ')}`);
+    }
+    
     _app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    console.log('[Firebase] App initialized successfully');
+    console.log('[Firebase] App initialized successfully, project:', firebaseConfig.projectId);
     return _app;
   } catch (error) {
     console.error('[Firebase] Failed to initialize:', error);
