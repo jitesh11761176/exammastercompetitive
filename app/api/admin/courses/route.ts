@@ -22,11 +22,23 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
+    console.log('[Courses API] GET - Session:', session?.user?.email, 'Role:', (session?.user as any)?.role);
+    
     // Production-safe auth check - verify session and email presence
     if (!session || !session.user?.email) {
+      console.error('[Courses API] GET - No session or email');
       return NextResponse.json({ 
         success: false,
-        error: "Unauthorized" 
+        error: "Unauthorized - No session" 
+      }, { status: 401 });
+    }
+    
+    // Check if user is admin
+    if ((session.user as any)?.role !== 'ADMIN') {
+      console.error('[Courses API] GET - Not admin, role:', (session.user as any)?.role);
+      return NextResponse.json({ 
+        success: false,
+        error: "Unauthorized - Admin access required" 
       }, { status: 401 });
     }
 
@@ -82,11 +94,23 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     
+    console.log('[Courses API] POST - Session:', session?.user?.email, 'Role:', (session?.user as any)?.role);
+    
     // Production-safe auth check - verify session and email presence
     if (!session || !session.user?.email) {
+      console.error('[Courses API] POST - No session or email');
       return NextResponse.json({ 
         success: false,
-        error: "Unauthorized" 
+        error: "Unauthorized - No session" 
+      }, { status: 401 });
+    }
+    
+    // Check if user is admin
+    if ((session.user as any)?.role !== 'ADMIN') {
+      console.error('[Courses API] POST - Not admin, role:', (session.user as any)?.role);
+      return NextResponse.json({ 
+        success: false,
+        error: "Unauthorized - Admin access required" 
       }, { status: 401 });
     }
 
