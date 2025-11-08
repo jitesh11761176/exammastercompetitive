@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'firebase/firestore'
+import { firestore } from '@/lib/firebase'
 
 interface Course {
   id: string
@@ -64,9 +66,16 @@ export default function CoursesPage() {
   const fetchCourses = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/courses')
-      const data = await res.json()
-      setCourses(Array.isArray(data) ? data : [])
+      const coursesRef = collection(firestore, 'courses')
+      const q = query(coursesRef, orderBy('order', 'asc'))
+      const snapshot = await getDocs(q)
+      
+      const coursesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Course[]
+      
+      setCourses(coursesData)
     } catch (error) {
       console.error('Error fetching courses:', error)
       toast.error('Failed to load courses')
@@ -79,41 +88,59 @@ export default function CoursesPage() {
     e.preventDefault()
 
     try {
-      const url = editingCourse 
-        ? `/api/admin/courses/${editingCourse.id}`
-        : '/api/admin/courses'
-      
-      const method = editingCourse ? 'PUT' : 'POST'
+      // Generate slug from title
+      const slug = formData.title
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        toast.success(editingCourse ? 'Course updated!' : 'Course created!')
-        setShowForm(false)
-        setEditingCourse(null)
-        setFormData({
-          title: '',
-          description: '',
-          thumbnail: '',
-          icon: '',
-          tags: [],
-          price: 0,
-          order: 0,
-          isActive: true,
-          isFree: false
+      if (editingCourse) {
+        // Update existing course
+        const courseRef = doc(firestore, 'courses', editingCourse.id)
+        await updateDoc(courseRef, {
+          ...formData,
+          slug,
+          updatedAt: serverTimestamp()
         })
-        fetchCourses()
+        toast.success('Course updated!')
       } else {
-        toast.error(data.message || 'Failed to save course')
+        // Check if slug already exists
+        const coursesRef = collection(firestore, 'courses')
+        const q = query(coursesRef, where('slug', '==', slug))
+        const existingDocs = await getDocs(q)
+        
+        if (!existingDocs.empty) {
+          toast.error('A course with this title already exists')
+          return
+        }
+
+        // Create new course
+        await addDoc(coursesRef, {
+          ...formData,
+          slug,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        })
+        toast.success('Course created!')
       }
-    } catch (error) {
-      toast.error('An error occurred')
+
+      setShowForm(false)
+      setEditingCourse(null)
+      setFormData({
+        title: '',
+        description: '',
+        thumbnail: '',
+        icon: '',
+        tags: [],
+        price: 0,
+        order: 0,
+        isActive: true,
+        isFree: false
+      })
+      fetchCourses()
+    } catch (error: any) {
+      console.error('Error saving course:', error)
+      toast.error(error.message || 'Failed to save course')
     }
   }
 
@@ -137,41 +164,28 @@ export default function CoursesPage() {
     if (!confirm('Are you sure you want to delete this course?')) return
 
     try {
-      const res = await fetch(`/api/admin/courses/${id}`, {
-        method: 'DELETE'
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        toast.success('Course deleted!')
-        fetchCourses()
-      } else {
-        toast.error(data.message || 'Failed to delete course')
-      }
-    } catch (error) {
-      toast.error('An error occurred')
+      const courseRef = doc(firestore, 'courses', id)
+      await deleteDoc(courseRef)
+      toast.success('Course deleted!')
+      fetchCourses()
+    } catch (error: any) {
+      console.error('Error deleting course:', error)
+      toast.error(error.message || 'Failed to delete course')
     }
   }
 
   const toggleActive = async (course: Course) => {
     try {
-      const res = await fetch(`/api/admin/courses/${course.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...course, isActive: !course.isActive })
+      const courseRef = doc(firestore, 'courses', course.id)
+      await updateDoc(courseRef, {
+        isActive: !course.isActive,
+        updatedAt: serverTimestamp()
       })
-
-      const data = await res.json()
-
-      if (data.success) {
-        toast.success(`Course ${!course.isActive ? 'activated' : 'deactivated'}!`)
-        fetchCourses()
-      } else {
-        toast.error(data.message || 'Failed to update course')
-      }
-    } catch (error) {
-      toast.error('An error occurred')
+      toast.success(`Course ${!course.isActive ? 'activated' : 'deactivated'}!`)
+      fetchCourses()
+    } catch (error: any) {
+      console.error('Error toggling course:', error)
+      toast.error(error.message || 'Failed to update course')
     }
   }
 
