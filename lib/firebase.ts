@@ -2,40 +2,39 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
-// Validate required Firebase environment variables
-const requiredEnvVars = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'NEXT_PUBLIC_FIREBASE_APP_ID',
-];
-
 // Check if we're in a build environment
 // During build, NEXT_PUBLIC vars might not be available yet
 function isBuildTime() {
   // If we're in a browser, definitely not build time
   if (typeof window !== 'undefined') return false;
   
-  // If we have the API key, we're at runtime (even if server-side)
-  if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) return false;
+  // Check for any Firebase config
+  const hasClientConfig = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const hasServerConfig = !!process.env.FIREBASE_API_KEY;
   
-  // No window and no API key = likely build time
+  // If we have ANY Firebase config, we're at runtime
+  if (hasClientConfig || hasServerConfig) return false;
+  
+  // No window and no config = likely build time
   return true;
+}
+
+// Get Firebase config - try server env vars first (for API routes), then client vars
+function getFirebaseConfig() {
+  return {
+    apiKey: process.env.FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+    projectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+    appId: process.env.FIREBASE_APP_ID || process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID || process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  };
 }
 
 
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+
 
 // Lazy initialization - only initialize when actually accessed at runtime
 let _app: any = null;
@@ -48,8 +47,10 @@ function ensureInitialized() {
   console.log('[Firebase] Initializing Firebase app...');
   console.log('[Firebase] Environment check:', {
     isWindow: typeof window !== 'undefined',
-    hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    hasClientApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    hasServerApiKey: !!process.env.FIREBASE_API_KEY,
+    hasClientProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    hasServerProjectId: !!process.env.FIREBASE_PROJECT_ID,
     nodeEnv: process.env.NODE_ENV,
     vercelEnv: process.env.VERCEL_ENV,
   });
@@ -61,16 +62,18 @@ function ensureInitialized() {
   }
   
   try {
-    // Log which env vars are missing
-    const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
-    if (missing.length > 0) {
-      console.error('[Firebase] Missing environment variables:', missing);
-      console.error('[Firebase] Available env var prefixes:', Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_FIREBASE')));
-      throw new Error(`Missing Firebase env vars: ${missing.join(', ')}`);
+    // Get config with fallback to server vars
+    const config = getFirebaseConfig();
+    
+    console.log('[Firebase] Using config for project:', config.projectId);
+    
+    // Check if we have minimum required config
+    if (!config.apiKey || !config.projectId) {
+      throw new Error('Missing required Firebase configuration (apiKey and projectId)');
     }
     
-    _app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    console.log('[Firebase] App initialized successfully, project:', firebaseConfig.projectId);
+    _app = !getApps().length ? initializeApp(config) : getApp();
+    console.log('[Firebase] App initialized successfully');
     return _app;
   } catch (error) {
     console.error('[Firebase] Failed to initialize:', error);
