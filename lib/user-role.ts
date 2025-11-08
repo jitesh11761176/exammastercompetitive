@@ -7,6 +7,13 @@
  */
 export async function getUserRole(email: string): Promise<string | null> {
     const timestamp = new Date().toISOString();
+    
+    // TEMPORARY FIX: Hardcode admin email until Firestore initialization is fixed
+    if (email === 'jiteshshahpgtcs2@gmail.com') {
+        console.log(`[${timestamp}] [getUserRole] Hardcoded ADMIN for:`, email);
+        return 'ADMIN';
+    }
+    
     try {
         console.log(`[${timestamp}] [getUserRole] ===== START =====`);
         console.log(`[${timestamp}] [getUserRole] Fetching role for:`, email);
