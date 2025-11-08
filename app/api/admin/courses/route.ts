@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
-import { collection, getDocs, query, orderBy as firestoreOrderBy, getCountFromServer, where } from "firebase/firestore";
-import { getFirebaseFirestore } from "@/lib/firebase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,33 +30,33 @@ export async function GET() {
       }, { status: 401 });
     }
 
-    const db = getFirebaseFirestore();
-    if (!db) {
-      throw new Error("Firestore not initialized");
-    }
+    // Use the firestore helpers that handle initialization
+    const { getAllDocuments, queryDocuments } = await import("@/lib/firestore-helpers");
+    const { where } = await import("firebase/firestore");
 
     // Get all courses from Firestore
-    const coursesRef = collection(db, "courses");
-    const coursesQuery = query(coursesRef, firestoreOrderBy("createdAt", "desc"));
-    const coursesSnapshot = await getDocs(coursesQuery);
+    const courses = await getAllDocuments("courses");
 
-    const data = await Promise.all(coursesSnapshot.docs.map(async (doc) => {
-      const courseData = doc.data();
-      
-      // Count categories for this course
-      const categoriesRef = collection(db, "categories");
-      const categoriesQuery = query(categoriesRef, where("courseId", "==", doc.id));
-      const categoriesSnapshot = await getCountFromServer(categoriesQuery);
+    // Sort by createdAt desc
+    const sortedCourses = courses.sort((a: any, b: any) => {
+      const aTime = a.createdAt?.seconds || 0;
+      const bTime = b.createdAt?.seconds || 0;
+      return bTime - aTime;
+    });
+
+    // Count categories for each course
+    const data = await Promise.all(sortedCourses.map(async (course: any) => {
+      const categories = await queryDocuments("categories", where("courseId", "==", course.id));
       
       return {
-        id: doc.id,
-        title: courseData.title,
-        slug: courseData.slug,
-        isActive: courseData.isActive ?? true,
-        isFree: courseData.isFree ?? false,
-        createdAt: courseData.createdAt,
+        id: course.id,
+        title: course.title,
+        slug: course.slug,
+        isActive: course.isActive ?? true,
+        isFree: course.isFree ?? false,
+        createdAt: course.createdAt,
         _count: {
-          categories: categoriesSnapshot.data().count
+          categories: categories.length
         }
       };
     }));
@@ -129,17 +127,14 @@ export async function POST(req: Request) {
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "");
 
-    const db = getFirebaseFirestore();
-    if (!db) {
-      throw new Error("Firestore not initialized");
-    }
+    // Use firestore helpers
+    const { queryDocuments, setDocument } = await import("@/lib/firestore-helpers");
+    const { where } = await import("firebase/firestore");
 
     // Check if slug already exists
-    const coursesRef = collection(db, "courses");
-    const existingQuery = query(coursesRef, where("slug", "==", slug));
-    const existingSnapshot = await getDocs(existingQuery);
+    const existingCourses = await queryDocuments("courses", where("slug", "==", slug));
 
-    if (!existingSnapshot.empty) {
+    if (existingCourses.length > 0) {
       return NextResponse.json(
         { 
           success: false,
@@ -149,9 +144,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // Generate a unique ID for the course
+    const courseId = `course_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     // Create new course
-    const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
-    const newCourseRef = doc(coursesRef);
     const courseData = {
       title,
       slug,
@@ -162,22 +158,18 @@ export async function POST(req: Request) {
       order,
       isActive,
       isFree,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    await setDoc(newCourseRef, courseData);
+    await setDocument("courses", courseId, courseData);
 
     return NextResponse.json({
       success: true,
       message: "Course created successfully",
       data: {
-        id: newCourseRef.id,
-        title,
-        slug,
-        isActive,
-        isFree,
-        createdAt: new Date().toISOString(),
+        id: courseId,
+        ...courseData
       }
     }, { status: 201 });
   } catch (err: any) {
