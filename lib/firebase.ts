@@ -12,14 +12,24 @@ const requiredEnvVars = [
   'NEXT_PUBLIC_FIREBASE_APP_ID',
 ];
 
-// Check if we're in a build environment and skip validation if env vars aren't available
-const isBuildTime = typeof window === 'undefined' && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+// Check if we're in a build environment
+// During build, NEXT_PUBLIC vars might not be available yet
+function isBuildTime() {
+  // If we're in a browser, definitely not build time
+  if (typeof window !== 'undefined') return false;
+  
+  // If we have the API key, we're at runtime (even if server-side)
+  if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) return false;
+  
+  // No window and no API key = likely build time
+  return true;
+}
 
-if (!isBuildTime) {
-  for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-      throw new Error(`Missing required environment variable: ${envVar}`);
-    }
+// Validate environment variables only when trying to initialize
+function validateEnvVars() {
+  const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required Firebase environment variables: ${missing.join(', ')}`);
   }
 }
 
@@ -42,14 +52,16 @@ function ensureInitialized() {
   if (_app) return _app;
   
   console.log('[Firebase] Initializing Firebase app...');
+  console.log('[Firebase] Environment check - window:', typeof window !== 'undefined', 'API key exists:', !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
   
   // During build time, don't initialize
-  if (isBuildTime) {
-    console.log('[Firebase] Skipping initialization - build time');
+  if (isBuildTime()) {
+    console.log('[Firebase] Skipping initialization - build time detected');
     return null;
   }
   
   try {
+    validateEnvVars();
     _app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     console.log('[Firebase] App initialized successfully');
     return _app;
@@ -91,7 +103,16 @@ export const getFirebaseAnalytics = () => {
   return _analytics;
 };
 
-// Legacy exports for backwards compatibility
-export const app = getFirebaseApp();
-export const firestore = getFirebaseFirestore();
-export const analytics = typeof window !== 'undefined' ? getFirebaseAnalytics() : null;
+// Legacy named exports - these should NOT be used in new code
+// They are kept for backwards compatibility but will be null at import time
+export let app: any = null;
+export let firestore: any = null;
+export let analytics: any = null;
+
+// Initialize legacy exports only if not in build time
+if (typeof window !== 'undefined') {
+  // Client-side: initialize immediately
+  app = getFirebaseApp();
+  firestore = getFirebaseFirestore();
+  analytics = getFirebaseAnalytics();
+}
