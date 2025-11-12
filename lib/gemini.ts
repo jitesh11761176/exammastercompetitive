@@ -1,23 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// Function to get the current API key from database (runtime) or environment
+// Function to get the current API key from environment
 async function getGeminiAPIKey(): Promise<string> {
-  try {
-    // Try to get from database first (allows runtime updates)
-    // Only import prisma at runtime to avoid build-time issues
-    // @ts-ignore - prisma is a stub file
-    const { prisma } = await import('./prisma')
-    const settings = await prisma.platformSettings.findUnique({
-      where: { category: 'ai' }
-    })
-
-    if (settings?.geminiApiKey) {
-      return settings.geminiApiKey
-    }
-  } catch (error) {
-    console.error('Error reading Gemini API key from database:', error)
-  }
-
+  // PRISMA MIGRATION: Removed database lookup, using environment variable only
   // Fallback to environment variable
   return process.env.GEMINI_API_KEY || ''
 }
