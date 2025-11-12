@@ -47,3 +47,24 @@ export async function predictPerformance(_userId: string, _categoryId: string) {
   console.log("[Recommendations] Predict performance - Firebase migration pending")
   return null
 }
+
+// Additional exports required by API routes
+export async function getNextBestTest(_userId: string) {
+  console.log("[Recommendations] Get next best test - Firebase migration pending")
+  return null
+}
+
+export async function getWeakTopicRecommendations(_userId: string) {
+  console.log("[Recommendations] Get weak topic recommendations - Firebase migration pending")
+  return []
+}
+
+export async function getSpacedRepetitionRecommendations(_userId: string) {
+  console.log("[Recommendations] Get spaced repetition recommendations - Firebase migration pending")
+  return []
+}
+
+export async function getSimilarUserRecommendations(_userId: string) {
+  console.log("[Recommendations] Get similar user recommendations - Firebase migration pending")
+  return []
+}
