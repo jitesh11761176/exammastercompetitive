@@ -6,13 +6,31 @@
 // This stub prevents build errors from old imports
 // TODO: Migrate all files importing this to use Firebase Firestore
 
+const prismaError = `
+Prisma is no longer configured in this project. 
+All data operations should use Firebase Firestore.
+See lib/firebase.ts for Firebase configuration and lib/firestore-helpers.ts for helper functions.
+
+Example migration:
+  BEFORE (Prisma): import { prisma } from '@/lib/prisma'
+  AFTER (Firebase): import { getAllDocuments, getDocumentById } from '@/lib/firestore-helpers'
+`
+
 export const prisma = new Proxy({} as any, {
   get: (_target, prop) => {
-    throw new Error(
-      `Prisma is no longer configured in this project. ` +
-      `Attempted to access: prisma.${String(prop)}. ` +
-      `Please use Firebase Firestore instead. See lib/firebase.ts`
-    )
+    // Return mock objects that throw on actual operations
+    if (prop === '$connect') return async () => { throw new Error(prismaError) }
+    if (prop === '$disconnect') return async () => {}
+    
+    // Return a mock for collection operations (course, user, etc)
+    return new Proxy({} as any, {
+      get: () => {
+        return new Proxy({} as any, {
+          apply: () => { throw new Error(prismaError) },
+          get: () => (() => { throw new Error(prismaError) })
+        })
+      }
+    })
   }
 })
 
@@ -23,7 +41,6 @@ export const prisma = new Proxy({} as any, {
 // const user = await prisma.user.findUnique({ where: { id: userId } })
 //
 // AFTER (Firestore):
-// import { firestore } from '@/lib/firebase'
-// import { doc, getDoc } from 'firebase/firestore'
-// const userDoc = await getDoc(doc(firestore, 'users', userId))
-// const user = userDoc.exists() ? userDoc.data() : null
+// import { getDocumentById } from '@/lib/firestore-helpers'
+// const user = await getDocumentById('users', userId)
+

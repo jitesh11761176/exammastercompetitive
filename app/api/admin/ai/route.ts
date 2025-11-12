@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth/next';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { prisma } from '@/lib/prisma';
+// PRISMA MIGRATION: import { prisma } from "@/lib/prisma";
 import { parseExamContent, convertToDBFormat } from '@/lib/question-parser';
 
 export const runtime = "nodejs";
@@ -975,3 +975,4 @@ async function saveQuestionsToDatabase(questions: any[]) {
 
   return savedQuestions;
 }
+

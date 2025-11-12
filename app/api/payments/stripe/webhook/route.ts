@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { prisma } from '@/lib/prisma'
+// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
 import Stripe from 'stripe'
 
 // Define PaymentStatus enum locally (was from Prisma)
@@ -155,3 +155,4 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+

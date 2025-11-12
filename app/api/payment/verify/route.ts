@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
 import { verifyRazorpaySignature } from '@/lib/razorpay'
 
 // Define PaymentStatus enum locally (was from Prisma)
@@ -151,3 +151,4 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+

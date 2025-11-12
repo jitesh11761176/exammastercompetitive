@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -9,8 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { BookOpen, Plus, Edit, Trash2, Search, Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'firebase/firestore'
-import { getFirebaseFirestore } from '@/lib/firebase'
+
+// NOTE: switched admin UI to use server API endpoints instead of direct
+// client-side Firestore operations. This keeps server/state authoritative
+// (Prisma / server DB or server-side Firestore) and avoids requiring
+// a working client Firebase configuration in the browser during admin tasks.
+
 
 interface Course {
   id: string
@@ -66,20 +70,16 @@ export default function CoursesPage() {
   const fetchCourses = async () => {
     try {
       setLoading(true)
-      const firestore = getFirebaseFirestore()
-      if (!firestore) {
-        throw new Error('Firestore is not initialized. Please check Firebase configuration.')
+      // Use server API to fetch courses (server enforces auth and returns
+      // consistent data shape). This avoids relying on client Firebase.
+      const res = await fetch('/api/admin/courses')
+      const json = await res.json()
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || json?.message || 'Failed to fetch courses')
       }
-      const coursesRef = collection(firestore, 'courses')
-      const q = query(coursesRef, orderBy('order', 'asc'))
-      const snapshot = await getDocs(q)
-      
-      const coursesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Course[]
-      
-      setCourses(coursesData)
+
+      // Server returns data as an array of course items
+      setCourses(json.data || [])
     } catch (error: any) {
       console.error('Error fetching courses:', error)
       toast.error(error.message || 'Failed to load courses')
@@ -92,43 +92,39 @@ export default function CoursesPage() {
     e.preventDefault()
 
     try {
-      const firestore = getFirebaseFirestore()
-      if (!firestore) {
-        throw new Error('Firestore is not initialized. Please check Firebase configuration.')
+      // Build payload and call server API
+      const payload = {
+        ...formData,
+        title: formData.title,
       }
-      // Generate slug from title
-      const slug = formData.title
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
 
       if (editingCourse) {
-        // Update existing course
-        const courseRef = doc(firestore, 'courses', editingCourse.id)
-        await updateDoc(courseRef, {
-          ...formData,
-          slug,
-          updatedAt: serverTimestamp()
+        // Update via server API
+        const res = await fetch(`/api/admin/courses/${editingCourse.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         })
+        const json = await res.json()
+        if (!res.ok) {
+          throw new Error(json?.message || json?.error || 'Failed to update course')
+        }
         toast.success('Course updated!')
       } else {
-        // Check if slug already exists
-        const coursesRef = collection(firestore, 'courses')
-        const q = query(coursesRef, where('slug', '==', slug))
-        const existingDocs = await getDocs(q)
-        
-        if (!existingDocs.empty) {
-          toast.error('A course with this title already exists')
+        // Create via server API
+        const res = await fetch('/api/admin/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const json = await res.json()
+        if (res.status === 409 || json?.status === 409) {
+          toast.error(json?.error || json?.message || 'A course with this title already exists')
           return
         }
-
-        // Create new course
-        await addDoc(coursesRef, {
-          ...formData,
-          slug,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
+        if (!res.ok) {
+          throw new Error(json?.error || json?.message || 'Failed to create course')
+        }
         toast.success('Course created!')
       }
 
@@ -172,9 +168,9 @@ export default function CoursesPage() {
     if (!confirm('Are you sure you want to delete this course?')) return
 
     try {
-      const firestore = getFirebaseFirestore()
-      const courseRef = doc(firestore, 'courses', id)
-      await deleteDoc(courseRef)
+      const res = await fetch(`/api/admin/courses/${id}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete course')
       toast.success('Course deleted!')
       fetchCourses()
     } catch (error: any) {
@@ -185,12 +181,13 @@ export default function CoursesPage() {
 
   const toggleActive = async (course: Course) => {
     try {
-      const firestore = getFirebaseFirestore()
-      const courseRef = doc(firestore, 'courses', course.id)
-      await updateDoc(courseRef, {
-        isActive: !course.isActive,
-        updatedAt: serverTimestamp()
+      const res = await fetch(`/api/admin/courses/${course.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !course.isActive })
       })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message || 'Failed to update course')
       toast.success(`Course ${!course.isActive ? 'activated' : 'deactivated'}!`)
       fetchCourses()
     } catch (error: any) {

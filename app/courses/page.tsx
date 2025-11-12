@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import Link from "next/link"
-import { prisma } from "@/lib/prisma"
+import { getAllDocuments } from "@/lib/firestore-helpers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,37 +14,19 @@ export const metadata: Metadata = {
 }
 
 async function getCourses() {
-  return await prisma.course.findMany({
-    where: {
-      isActive: true
-    },
-    include: {
-      _count: {
-        select: {
-          categories: true,
-          enrollments: true
-        }
-      },
-      categories: {
-        where: {
-          isActive: true
-        },
-        take: 3,
-        select: {
-          id: true,
-          name: true,
-          slug: true
-        }
-      }
-    },
-    orderBy: {
-      order: 'asc'
-    }
-  })
+  try {
+    const courses = await getAllDocuments('courses')
+    return courses.filter((course: any) => course.isActive !== false)
+  } catch (error) {
+    console.error('[Courses] Error fetching:', error)
+    return []
+  }
 }
 
 function CourseCard({ course }: { course: any }) {
   const isFree = course.isFree
+  const categoriesCount = course.categoriesCount || 0
+  const enrollmentsCount = course.enrollmentsCount || 0
   
   return (
     <Card className="flex flex-col h-full">
@@ -80,30 +62,14 @@ function CourseCard({ course }: { course: any }) {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <BookOpen className="h-4 w-4" />
-            <span>{course._count.categories} categories</span>
+            <span>{categoriesCount} categories</span>
           </div>
           
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
-            <span>{course._count.enrollments} enrolled</span>
+            <span>{enrollmentsCount} enrolled</span>
           </div>
         </div>
-
-        {/* Show preview of categories */}
-        {course.categories && course.categories.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {course.categories.map((category: any) => (
-              <Badge key={category.id} variant="outline" className="text-xs">
-                {category.name}
-              </Badge>
-            ))}
-            {course._count.categories > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{course._count.categories - 3} more
-              </Badge>
-            )}
-          </div>
-        )}
 
         {/* Show tags if available */}
         {course.tags && course.tags.length > 0 && (

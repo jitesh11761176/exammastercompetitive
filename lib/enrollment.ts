@@ -1,120 +1,96 @@
-import { prisma } from './prisma'
+import { getFirebaseFirestore } from './firebase'
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 
-// NOTE: This module has been migrated from TestSeries-based enrollments to Course enrollments.
-// The second argument (seriesId) is now treated as courseId for backward compatibility.
+// NOTE: This module has been migrated from Prisma to Firebase Firestore
+// Manages course enrollments for users
 
 export async function createEnrollment(
   userId: string,
-  seriesId: string, // Interpreted as courseId in the new model
+  courseId: string, // Interpreted as courseId
   _paymentId?: string
 ) {
-  // Validate course
-  const course = await prisma.course.findUnique({ where: { id: seriesId } })
-  if (!course) {
+  const firestore = getFirebaseFirestore()
+  if (!firestore) throw new Error('Firestore not initialized')
+
+  // Validate course exists
+  const courseRef = doc(firestore, 'courses', courseId)
+  const courseSnap = await getDoc(courseRef)
+  if (!courseSnap.exists()) {
     throw new Error('Course not found')
   }
 
-  // Upsert course enrollment (unique on userId+courseId)
-  const enrollment = await prisma.courseEnrollment.upsert({
-    where: {
-      userId_courseId: { userId, courseId: course.id },
-    },
-    update: {
-      status: 'ACTIVE',
-      enrolledAt: new Date(),
-      lastAccessedAt: new Date(),
-    },
-    create: {
-      userId,
-      courseId: course.id,
-      status: 'ACTIVE',
-      enrolledAt: new Date(),
-    },
-    include: {
-      course: true,
-    },
-  })
-
-  return enrollment
+  // Create/update enrollment in Firestore
+  const enrollmentRef = doc(firestore, 'enrollments', `${userId}_${courseId}`)
+  const enrollmentData = {
+    userId,
+    courseId,
+    status: 'ACTIVE',
+    enrolledAt: new Date().toISOString(),
+    lastAccessedAt: new Date().toISOString(),
+  }
+  
+  await setDoc(enrollmentRef, enrollmentData, { merge: true })
+  return { id: `${userId}_${courseId}`, ...enrollmentData }
 }
 
 export async function getUserEnrollments(userId: string, status?: string) {
-  const where: any = { userId }
-  if (status) where.status = status as any
+  const firestore = getFirebaseFirestore()
+  if (!firestore) throw new Error('Firestore not initialized')
 
-  const enrollments = await prisma.courseEnrollment.findMany({
-    where,
-    include: {
-      course: {
-        include: {
-          categories: {
-            where: { isActive: true },
-            select: { id: true, name: true, slug: true },
-            take: 5,
-          },
-        },
-      },
-    },
-    orderBy: { enrolledAt: 'desc' },
-  })
+  const enrollmentsRef = collection(firestore, 'enrollments')
+  const constraints = [where('userId', '==', userId)]
+  if (status) constraints.push(where('status', '==', status))
+
+  const q = query(enrollmentsRef, ...constraints)
+  const snap = await getDocs(q)
+  
+  const enrollments: any[] = []
+  for (const enrollDoc of snap.docs) {
+    const enrollData = enrollDoc.data()
+    // Fetch course details
+    const courseRef = doc(firestore, 'courses', enrollData.courseId)
+    const courseSnap = await getDoc(courseRef)
+    
+    enrollments.push({
+      id: enrollDoc.id,
+      ...enrollData,
+      course: courseSnap.exists() ? { id: courseSnap.id, ...courseSnap.data() } : null
+    })
+  }
 
   return enrollments
 }
 
 export async function updateEnrollmentProgress(
   userId: string,
-  seriesId: string, // Interpreted as courseId
-  testAttemptId: string
+  courseId: string,
+  _testAttemptId: string
 ) {
-  const attempt = await prisma.testAttempt.findUnique({
-    where: { id: testAttemptId },
-  })
-  if (!attempt || attempt.status !== 'COMPLETED') return
+  const firestore = getFirebaseFirestore()
+  if (!firestore) throw new Error('Firestore not initialized')
 
-  const enrollment = await prisma.courseEnrollment.findUnique({
-    where: { userId_courseId: { userId, courseId: seriesId } },
-  })
-  if (!enrollment) return
-
-  // All completed attempts by this user for tests under this course
-  const completedAttempts = await prisma.testAttempt.findMany({
-    where: {
-      userId,
-      status: 'COMPLETED',
-      test: {
-        category: { courseId: seriesId },
-      },
-    },
-    distinct: ['testId'],
-    select: { score: true },
-  })
-
-  const totalScore = completedAttempts.reduce((sum: number, a: { score: number }) => sum + (a.score ?? 0), 0)
-  const avgScore = completedAttempts.length > 0 ? totalScore / completedAttempts.length : 0
-
-  await prisma.courseEnrollment.update({
-    where: { id: enrollment.id },
-    data: {
-      completedTests: completedAttempts.length,
-      totalScore,
-      averageScore: avgScore,
-      lastAccessedAt: new Date(),
-    },
-  })
+  // Update enrollment with last access time
+  const enrollmentRef = doc(firestore, 'enrollments', `${userId}_${courseId}`)
+  await setDoc(enrollmentRef, {
+    lastAccessedAt: new Date().toISOString()
+  }, { merge: true })
 }
 
-export async function checkEnrollmentStatus(userId: string, seriesId: string) {
-  const enrollment = await prisma.courseEnrollment.findUnique({
-    where: { userId_courseId: { userId, courseId: seriesId } },
-  })
+export async function checkEnrollmentStatus(userId: string, courseId: string) {
+  const firestore = getFirebaseFirestore()
+  if (!firestore) throw new Error('Firestore not initialized')
 
-  if (!enrollment) {
-    return { isEnrolled: false, status: null as any, enrollment: null as any }
+  const enrollmentRef = doc(firestore, 'enrollments', `${userId}_${courseId}`)
+  const enrollSnap = await getDoc(enrollmentRef)
+
+  if (!enrollSnap.exists()) {
+    return { isEnrolled: false, status: null, enrollment: null }
   }
 
+  const enrollmentData: any = enrollSnap.data()
   return {
-    isEnrolled: enrollment.status === 'ACTIVE',
-    status: enrollment.status,
-    enrollment,
+    isEnrolled: enrollmentData.status === 'ACTIVE',
+    status: enrollmentData.status,
+    enrollment: { id: enrollSnap.id, ...enrollmentData },
   }
 }

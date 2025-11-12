@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
 import Papa from 'papaparse'
 import { parseExamContent, convertToDBFormat } from '@/lib/question-parser'
 
@@ -240,3 +240,4 @@ export const runtime = 'nodejs'
 export const maxDuration = 60 // 60 seconds for large file processing
 // Note: removed deprecated `export const config` (Next.js now uses route segment config).
 // The route still exports `dynamic` and `runtime` above.
+

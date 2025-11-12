@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic'
@@ -113,3 +113,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create course' }, { status: 500 })
   }
 }
+

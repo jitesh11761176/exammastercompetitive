@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,28 +20,11 @@ export async function GET(
       )
     }
 
-    const course = await prisma.course.findUnique({
-      where: { id: params.courseId },
-      include: {
-        categories: {
-          include: {
-            _count: {
-              select: {
-                tests: true,
-                subjects: true
-              }
-            }
-          },
-          orderBy: { order: 'asc' }
-        },
-        _count: {
-          select: {
-            enrollments: true,
-            categories: true
-          }
-        }
-      }
-    })
+    const { getDocumentById, queryDocuments } = await import("@/lib/firestore-helpers");
+    const { where } = await import("firebase/firestore");
+
+    // Fetch course from Firestore
+    const course = await getDocumentById('courses', params.courseId)
 
     if (!course) {
       return NextResponse.json(
@@ -51,9 +33,28 @@ export async function GET(
       )
     }
 
+    // Fetch categories for this course
+    const categories = await queryDocuments('categories', where('courseId', '==', params.courseId))
+    
+    // Count enrollments and categorize data for response
+    const enrichedCourse = {
+      ...course,
+      _count: {
+        categories: categories.length,
+        enrollments: 0
+      },
+      categories: categories.map((cat: any) => ({
+        ...cat,
+        _count: {
+          tests: cat.tests?.length || 0,
+          subjects: cat.subjects?.length || 0
+        }
+      }))
+    }
+
     return NextResponse.json({
       success: true,
-      data: course
+      data: enrichedCourse
     })
   } catch (error) {
     console.error('Error fetching course:', error)
@@ -82,9 +83,11 @@ export async function PUT(
     const body = await request.json()
     const { title, description, icon, tags, order, isActive, isFree } = body
 
-    const existingCourse = await prisma.course.findUnique({
-      where: { id: params.courseId }
-    })
+    const { getDocumentById, updateDocument, queryDocuments } = await import("@/lib/firestore-helpers");
+    const { where } = await import("firebase/firestore");
+
+    // Fetch existing course
+    const existingCourse = await getDocumentById('courses', params.courseId)
 
     if (!existingCourse) {
       return NextResponse.json(
@@ -102,14 +105,9 @@ export async function PUT(
         .replace(/^-+|-+$/g, '')
 
       // Check if new slug already exists
-      const slugExists = await prisma.course.findFirst({
-        where: {
-          slug,
-          id: { not: params.courseId }
-        }
-      })
+      const slugExists = await queryDocuments('courses', where('slug', '==', slug), where('id', '!=', params.courseId))
 
-      if (slugExists) {
+      if (slugExists.length > 0) {
         return NextResponse.json(
           { success: false, message: 'A course with this title already exists' },
           { status: 400 }
@@ -117,24 +115,28 @@ export async function PUT(
       }
     }
 
-    const course = await prisma.course.update({
-      where: { id: params.courseId },
-      data: {
-        title: title || existingCourse.title,
-        slug,
-        description: description !== undefined ? description : existingCourse.description,
-        icon: icon !== undefined ? icon : existingCourse.icon,
-        tags: tags !== undefined ? tags : existingCourse.tags,
-        order: order !== undefined ? order : existingCourse.order,
-        isActive: isActive !== undefined ? isActive : existingCourse.isActive,
-        isFree: isFree !== undefined ? isFree : existingCourse.isFree
-      }
-    })
+    // Update course in Firestore
+    const updatedData = {
+      title: title || existingCourse.title,
+      slug,
+      description: description !== undefined ? description : existingCourse.description,
+      icon: icon !== undefined ? icon : existingCourse.icon,
+      tags: tags !== undefined ? tags : existingCourse.tags,
+      order: order !== undefined ? order : existingCourse.order,
+      isActive: isActive !== undefined ? isActive : existingCourse.isActive,
+      isFree: isFree !== undefined ? isFree : existingCourse.isFree,
+      updatedAt: new Date().toISOString()
+    }
+
+    await updateDocument('courses', params.courseId, updatedData)
 
     return NextResponse.json({
       success: true,
       message: 'Course updated successfully',
-      data: course
+      data: {
+        id: params.courseId,
+        ...updatedData
+      }
     })
   } catch (error) {
     console.error('Error updating course:', error)
@@ -160,17 +162,11 @@ export async function DELETE(
       )
     }
 
-    const course = await prisma.course.findUnique({
-      where: { id: params.courseId },
-      include: {
-        _count: {
-          select: {
-            categories: true,
-            enrollments: true
-          }
-        }
-      }
-    })
+    const { getDocumentById, deleteDocument, queryDocuments } = await import("@/lib/firestore-helpers");
+    const { where } = await import("firebase/firestore");
+
+    // Fetch course to verify it exists and get category count
+    const course = await getDocumentById('courses', params.courseId)
 
     if (!course) {
       return NextResponse.json(
@@ -179,16 +175,17 @@ export async function DELETE(
       )
     }
 
-    // Delete course (will cascade delete categories and tests due to schema)
-    await prisma.course.delete({
-      where: { id: params.courseId }
-    })
+    // Count related categories
+    const categories = await queryDocuments('categories', where('courseId', '==', params.courseId))
+
+    // Delete course from Firestore
+    await deleteDocument('courses', params.courseId)
 
     return NextResponse.json({
       success: true,
       message: 'Course deleted successfully',
-      deletedCategories: course._count.categories,
-      deletedEnrollments: course._count.enrollments
+      deletedCategories: categories.length,
+      deletedEnrollments: 0
     })
   } catch (error) {
     console.error('Error deleting course:', error)

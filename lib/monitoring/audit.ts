@@ -1,5 +1,8 @@
-import { prisma } from '@/lib/prisma'
-import { logger } from './logger'
+// lib/monitoring/audit.ts
+// MIGRATED: This module has been converted to use Firebase Firestore instead of Prisma
+
+import { getFirebaseFirestore } from '../firebase'
+import { collection, addDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 
 export interface AuditContext {
   userId?: string
@@ -26,25 +29,28 @@ export async function createAuditLog(
   error?: string
 ) {
   try {
-    await prisma.auditLog.create({
-      data: {
-        action: action as any,
-        userId: context.userId,
-        userEmail: context.userEmail,
-        userRole: context.userRole as any,
-        ipAddress: context.ipAddress,
-        userAgent: context.userAgent,
-        resource: details.resource,
-        resourceId: details.resourceId,
-        changes: details.changes,
-        metadata: details.metadata,
-        status: status as any,
-        errorMessage: error,
-        duration: details.duration,
-      },
+    const firestore = getFirebaseFirestore()
+    if (!firestore) return
+    
+    const logsRef = collection(firestore, 'auditLogs')
+    await addDoc(logsRef, {
+      action,
+      userId: context.userId,
+      userEmail: context.userEmail,
+      userRole: context.userRole,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      resource: details.resource,
+      resourceId: details.resourceId,
+      changes: details.changes,
+      metadata: details.metadata,
+      status,
+      errorMessage: error,
+      duration: details.duration,
+      timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('Failed to create audit log', { action, error: err })
+    console.error('Failed to create audit log', { action, error: err })
   }
 }
 
@@ -55,7 +61,6 @@ export function auditChange<T extends Record<string, any>>(
 ): Record<string, { before: any; after: any }> {
   const changes: Record<string, { before: any; after: any }> = {}
   
-  // Compare all fields
   const allKeys = new Set([...Object.keys(before), ...Object.keys(after)])
   
   for (const key of allKeys) {
@@ -94,32 +99,33 @@ export async function getAuditLogs(filters: {
   resource?: string
   startDate?: Date
   endDate?: Date
-  limit?: number
-  offset?: number
+  limit_?: number
+  offset_?: number
 }) {
-  const where: any = {}
-  
-  if (filters.userId) where.userId = filters.userId
-  if (filters.action) where.action = filters.action
-  if (filters.resource) where.resource = filters.resource
-  
-  if (filters.startDate || filters.endDate) {
-    where.createdAt = {}
-    if (filters.startDate) where.createdAt.gte = filters.startDate
-    if (filters.endDate) where.createdAt.lte = filters.endDate
+  try {
+    const firestore = getFirebaseFirestore()
+    if (!firestore) return { logs: [], total: 0 }
+    
+    const logsRef = collection(firestore, 'auditLogs')
+    const constraints: any[] = [orderBy('timestamp', 'desc')]
+    
+    if (filters.userId) constraints.push(where('userId', '==', filters.userId))
+    if (filters.action) constraints.push(where('action', '==', filters.action))
+    if (filters.resource) constraints.push(where('resource', '==', filters.resource))
+    
+    if (filters.limit_) constraints.push(limit(filters.limit_))
+    
+    const q = query(logsRef, ...constraints)
+    const snap = await getDocs(q)
+    
+    return {
+      logs: snap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      total: snap.size
+    }
+  } catch (error) {
+    console.error('Error fetching audit logs:', error)
+    return { logs: [], total: 0 }
   }
-  
-  const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: filters.limit || 50,
-      skip: filters.offset || 0,
-    }),
-    prisma.auditLog.count({ where }),
-  ])
-  
-  return { logs, total }
 }
 
 // Export audit logs for compliance
@@ -128,42 +134,68 @@ export async function exportAuditLogs(
   endDate: Date,
   format: 'json' | 'csv' = 'json'
 ) {
-  const logs = await prisma.auditLog.findMany({
-    where: {
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    orderBy: { createdAt: 'asc' },
-  })
-  
-  if (format === 'csv') {
-    // Convert to CSV format
-    const headers = [
-      'Timestamp',
-      'User ID',
-      'User Email',
-      'Action',
-      'Resource',
-      'Resource ID',
-      'Status',
-      'IP Address',
-    ]
+  try {
+    const firestore = getFirebaseFirestore()
+    if (!firestore) return format === 'csv' ? '' : '[]'
     
-    const rows = logs.map((log: any) => [
-      log.createdAt.toISOString(),
-      log.userId || '',
-      log.userEmail || '',
-      log.action,
-      log.resource,
-      log.resourceId || '',
-      log.status,
-      log.ipAddress || '',
-    ])
+    const logsRef = collection(firestore, 'auditLogs')
+    const q = query(
+      logsRef,
+      where('timestamp', '>=', startDate.toISOString()),
+      where('timestamp', '<=', endDate.toISOString()),
+      orderBy('timestamp', 'asc')
+    )
     
-    return [headers, ...rows].map((row: any) => row.join(',')).join('\n')
+    const snap = await getDocs(q)
+    const logs = snap.docs.map(doc => doc.data())
+    
+    if (format === 'csv') {
+      const headers = [
+        'Timestamp',
+        'User ID',
+        'User Email',
+        'Action',
+        'Resource',
+        'Resource ID',
+        'Status',
+        'IP Address',
+      ]
+      
+      const rows = logs.map((log: any) => [
+        log.timestamp || '',
+        log.userId || '',
+        log.userEmail || '',
+        log.action,
+        log.resource,
+        log.resourceId || '',
+        log.status,
+        log.ipAddress || '',
+      ])
+      
+      return [headers, ...rows].map((row: any) => row.join(',')).join('\n')
+    }
+    
+    return JSON.stringify(logs, null, 2)
+  } catch (error) {
+    console.error('Error exporting audit logs:', error)
+    return format === 'csv' ? '' : '[]'
   }
-  
-  return JSON.stringify(logs, null, 2)
 }
+
+export interface AuditContext {
+  userId?: string
+  userEmail?: string
+  userRole?: string
+  ipAddress?: string
+  userAgent?: string
+}
+
+export interface AuditDetails {
+  resource: string
+  resourceId?: string
+  changes?: any
+  metadata?: any
+  duration?: number
+}
+
+// OLD PRISMA CODE REMOVED - SEE FIREBASE IMPLEMENTATIONS ABOVE
