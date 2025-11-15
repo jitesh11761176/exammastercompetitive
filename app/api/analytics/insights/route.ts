@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
+import { getFirebaseFirestore } from '@/lib/firebase'
+import { collection, doc, getDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -14,42 +15,69 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const db = getFirebaseFirestore()
+
     // Get user's analytics data
-    const [analytics, progressRows, recentTests] = await Promise.all([
-      prisma.analytics.findUnique({
-        where: { userId: session.user.id },
-      }),
-      prisma.userProgress.findMany({
-        where: { userId: session.user.id },
-        include: {
-          question: {
-            include: {
-              topic: {
-                include: { subject: true },
-              },
-            },
-          },
-        },
-        orderBy: { attemptedAt: 'desc' },
-        take: 1000,
-      }),
-      prisma.testAttempt.findMany({
-        where: {
-          userId: session.user.id,
-          status: 'COMPLETED',
-        },
-        include: {
-          test: {
-            select: {
-              title: true,
-              difficulty: true,
-            },
-          },
-        },
-        orderBy: { endTime: 'desc' },
-        take: 5,
-      }),
+    const analyticsRef = doc(db, 'analytics', session.user.id)
+    const progressQuery = query(
+      collection(db, 'userProgress'),
+      where('userId', '==', session.user.id),
+      orderBy('attemptedAt', 'desc'),
+      limit(1000)
+    )
+    const testsQuery = query(
+      collection(db, 'testAttempts'),
+      where('userId', '==', session.user.id),
+      where('status', '==', 'COMPLETED'),
+      orderBy('endTime', 'desc'),
+      limit(5)
+    )
+
+    const [analyticsSnap, progressSnap, testsSnap] = await Promise.all([
+      getDoc(analyticsRef),
+      getDocs(progressQuery),
+      getDocs(testsQuery),
     ])
+
+    const analytics = analyticsSnap.exists() ? analyticsSnap.data() : null
+
+    const progressRows = progressSnap.docs.map(d => d.data())
+    for (const row of progressRows) {
+      if (row.questionId) {
+        const questionSnap = await getDoc(doc(db, 'questions', row.questionId))
+        if (questionSnap.exists()) {
+          const questionData = questionSnap.data()
+          row.question = questionData
+          if (questionData.topicId) {
+            const topicSnap = await getDoc(doc(db, 'topics', questionData.topicId))
+            if (topicSnap.exists()) {
+              const topicData = topicSnap.data()
+              row.question.topic = topicData
+              if (topicData.subjectId) {
+                const subjectSnap = await getDoc(doc(db, 'subjects', topicData.subjectId))
+                if (subjectSnap.exists()) {
+                  row.question.topic.subject = subjectSnap.data()
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const recentTests = testsSnap.docs.map(d => d.data())
+    for (const t of recentTests) {
+      if (t.testId) {
+        const testSnap = await getDoc(doc(db, 'tests', t.testId))
+        if (testSnap.exists()) {
+          const testData = testSnap.data()
+          t.test = {
+            title: testData.title,
+            difficulty: testData.difficulty,
+          }
+        }
+      }
+    }
 
     // Aggregate progress by topic
     type Agg = {
