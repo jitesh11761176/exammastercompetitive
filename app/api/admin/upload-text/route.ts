@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/firebase'
+import { getFirebaseFirestore } from '@/lib/firebase'
 import { collection, doc, setDoc, getDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 
 export const runtime = "nodejs";
@@ -167,6 +167,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Found ${parsedQuestions.length} questions`)
+
+    // Initialize Firestore
+    const db = getFirebaseFirestore()
 
     // Find or create a default course for text uploads
     const courseSlug = 'text-uploads'
