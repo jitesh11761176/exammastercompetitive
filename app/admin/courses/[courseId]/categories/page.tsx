@@ -54,6 +54,7 @@ export default function CategoriesPage() {
   useEffect(() => {
     fetchCourse()
     fetchCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId])
 
   const fetchCourse = async () => {
