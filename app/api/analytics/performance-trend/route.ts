@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-// PRISMA MIGRATION: import { prisma } from '@/lib/prisma'
+import { getFirebaseFirestore } from '@/lib/firebase'
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,21 +19,25 @@ export async function GET(request: NextRequest) {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
+    const db = getFirebaseFirestore()
+
     // Get test attempts within date range
-    const attempts = await prisma.testAttempt.findMany({
-      where: {
-        userId: session.user.id,
-        status: 'COMPLETED',
-        endTime: {
-          gte: startDate,
-        },
-      },
-      orderBy: { endTime: 'asc' },
-      select: {
-        accuracy: true,
-        endTime: true,
-        score: true,
-      },
+    const attemptsQuery = query(
+      collection(db, 'testAttempts'),
+      where('userId', '==', session.user.id),
+      where('status', '==', 'COMPLETED'),
+      where('endTime', '>=', startDate),
+      orderBy('endTime', 'asc')
+    )
+    
+    const attemptsSnap = await getDocs(attemptsQuery)
+    const attempts = attemptsSnap.docs.map(doc => {
+      const data = doc.data()
+      return {
+        accuracy: data.accuracy,
+        endTime: data.endTime.toDate(), // Convert Firestore Timestamp to Date
+        score: data.score,
+      }
     })
 
     // Group by date and calculate averages
