@@ -192,7 +192,6 @@ export async function POST(request: NextRequest) {
       courseSnap = await getDoc(courseRef)
     }
 
-    const courseData = courseSnap.data()
     const courseId = courseSlug
 
     // Create or get category
