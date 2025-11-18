@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
 // PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
-import Stripe from 'stripe'
-
-// Define PaymentStatus enum locally (was from Prisma)
-enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCEEDED = 'SUCCEEDED',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+// Removed unused imports: stripe, Stripe, PaymentStatus enum
 
 // Configure route to handle raw body for Stripe webhook signature verification
 export const runtime = 'nodejs'

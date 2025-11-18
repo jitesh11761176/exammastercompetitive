@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 // PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
+// Removed unused imports: getServerSession, authOptions
 
 export async function POST(request: NextRequest) {
   return NextResponse.json(

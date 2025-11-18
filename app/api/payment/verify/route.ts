@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 // PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
-import { verifyRazorpaySignature } from '@/lib/razorpay'
-
-// Define PaymentStatus enum locally (was from Prisma)
-enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCEEDED = 'SUCCEEDED',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+// Removed unused imports: getServerSession, authOptions, verifyRazorpaySignature, PaymentStatus enum
 
 // POST /api/payment/verify - Verify Razorpay payment
 export async function POST(req: NextRequest) {
