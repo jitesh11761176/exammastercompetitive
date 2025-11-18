@@ -211,3 +211,4 @@ function getDifficultyColor(difficulty: string): string {
   }
   return colors[difficulty] || '#6B7280'
 }
+*/
