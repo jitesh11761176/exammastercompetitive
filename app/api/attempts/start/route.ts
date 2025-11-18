@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-// PRISMA MIGRATION: import { prisma } from '@/lib/prisma'
+// PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
 
 export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    { error: 'This endpoint requires Firebase migration and is currently disabled' },
+    { status: 503 }
+  )
+}
+
+// DISABLED - REQUIRES FIREBASE MIGRATION
+/*
+export async function POST_DISABLED(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -12,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const { testId } = await request.json()
 
-    const user = await prisma.user.findUnique({
+    const user = await FIREBASE_TODO.user.findUnique({
       where: { email: session.user.email }
     })
 

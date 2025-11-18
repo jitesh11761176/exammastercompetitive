@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
+// PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
 import { verifyRazorpaySignature } from '@/lib/razorpay'
 
 // Define PaymentStatus enum locally (was from Prisma)
@@ -14,6 +14,15 @@ enum PaymentStatus {
 
 // POST /api/payment/verify - Verify Razorpay payment
 export async function POST(req: NextRequest) {
+  return NextResponse.json(
+    { error: 'This endpoint requires Firebase migration and is currently disabled' },
+    { status: 503 }
+  )
+}
+
+// DISABLED - REQUIRES FIREBASE MIGRATION
+/*
+export async function POST_DISABLED(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 

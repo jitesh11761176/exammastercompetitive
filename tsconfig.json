@@ -47,9 +47,6 @@
       ],
       "@/types/*": [
         "./types/*"
-      ],
-      "@/prisma/*": [
-        "./prisma/*"
       ]
     },
     // Next.js Specific

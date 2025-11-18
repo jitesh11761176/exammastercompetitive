@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-// PRISMA MIGRATION: import { prisma } from '@/lib/prisma'
+// PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
 
 export async function GET() {
+  return NextResponse.json(
+    { error: 'This endpoint requires Firebase migration and is currently disabled' },
+    { status: 503 }
+  )
+}
+
+// DISABLED - REQUIRES FIREBASE MIGRATION
+/*
+export async function GET_DISABLED() {
   try {
     const session = await getServerSession(authOptions)
 
@@ -12,7 +21,7 @@ export async function GET() {
     }
 
     // Get per-question progress with topic/subject via question
-    const progressRows = await prisma.userProgress.findMany({
+    const progressRows = await FIREBASE_TODO.userProgress.findMany({
       where: { userId: session.user.id },
       include: {
         question: {

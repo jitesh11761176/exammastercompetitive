@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-// PRISMA MIGRATION: import { prisma } from "@/lib/prisma"
+// PRISMA MIGRATION: This endpoint requires Firebase migration and is currently disabled
 import Stripe from 'stripe'
 
 // Define PaymentStatus enum locally (was from Prisma)
@@ -15,6 +15,15 @@ enum PaymentStatus {
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    { error: 'This endpoint requires Firebase migration and is currently disabled' },
+    { status: 503 }
+  )
+}
+
+// DISABLED - REQUIRES FIREBASE MIGRATION
+/*
+export async function POST_DISABLED(request: NextRequest) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')!
 
